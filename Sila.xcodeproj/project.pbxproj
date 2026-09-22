@@ -11,6 +11,7 @@
 		6A9492E02E45030A00D5EA62 /* AddTaskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A7755D92E44FEB3009A5901 /* AddTaskView.swift */; };
 		6A9492E22E45035100D5EA62 /* TimerDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9492E12E45035100D5EA62 /* TimerDashboardView.swift */; };
 		6A9492E42E4503F100D5EA62 /* ProductivitySummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9492E32E4503F100D5EA62 /* ProductivitySummaryView.swift */; };
+		6A9492F82E45498E00D5EA62 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 6A9492F72E45498E00D5EA62 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,6 +41,7 @@
 		6A7755D92E44FEB3009A5901 /* AddTaskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTaskView.swift; sourceTree = "<group>"; };
 		6A9492E12E45035100D5EA62 /* TimerDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerDashboardView.swift; sourceTree = "<group>"; };
 		6A9492E32E4503F100D5EA62 /* ProductivitySummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivitySummaryView.swift; sourceTree = "<group>"; };
+		6A9492F72E45498E00D5EA62 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -88,6 +90,7 @@
 		6A53269C2E44F3DA009E4D7E = {
 			isa = PBXGroup;
 			children = (
+				6A9492F72E45498E00D5EA62 /* README.md */,
 				6A7755D02E44FB6E009A5901 /* ViewModels */,
 				6A7755CF2E44FB68009A5901 /* Utils */,
 				6A7755CE2E44FB61009A5901 /* TimerModels */,
@@ -287,6 +290,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6A9492F82E45498E00D5EA62 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

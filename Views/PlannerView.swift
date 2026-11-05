@@ -26,7 +26,7 @@ struct PlannerView: View {
                 ForEach(tasks) { task in
                     HStack {
                         Button(action: {
-                            task.completed.toggle()
+                            task.toggleCompleted()
                             save()
                         }) {
                             Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")

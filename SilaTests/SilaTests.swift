@@ -282,14 +282,41 @@ struct ProductivitySummaryViewModelTests {
     // Looks the entity up by name because +[StudyTask entity] is ambiguous when
     // several containers have loaded the model, as they do across these tests.
     @discardableResult
-    private func addTask(on date: Date?, minutes: Int64, completed: Bool = true) throws -> StudyTask {
+    private func addTask(on date: Date?, minutes: Int64, completed: Bool = true, completedAt: Date? = nil) throws -> StudyTask {
         let task = NSEntityDescription.insertNewObject(forEntityName: "StudyTask", into: context) as! StudyTask
         task.title = "Task"
         task.date = date
         task.duration = minutes
         task.completed = completed
+        task.completedAt = completedAt
         try context.save()
         return task
+    }
+
+    @Test func minutesCountOnTheDayCompletedNotTheDayScheduled() throws {
+        try addTask(on: date(daysAgo: 5), minutes: 30, completedAt: date(daysAgo: 0))
+        try addTask(on: date(daysAgo: 0), minutes: 60, completedAt: date(daysAgo: 1))
+
+        let summary = makeSummary()
+        #expect(summary.todayTotalMinutes == 30)
+        #expect(summary.past7DaysData.map(\.totalMinutes) == [0, 0, 0, 0, 0, 60, 30])
+    }
+
+    @Test func taskWithoutACompletionDateCountsOnItsScheduledDate() throws {
+        try addTask(on: date(daysAgo: 2), minutes: 30, completedAt: nil)
+        #expect(makeSummary().past7DaysData.map(\.totalMinutes) == [0, 0, 0, 0, 30, 0, 0])
+    }
+
+    @Test func togglingSetsAndClearsTheCompletionDate() throws {
+        let task = try addTask(on: date(daysAgo: 5), minutes: 30, completed: false)
+
+        task.toggleCompleted(now: today)
+        #expect(task.completed)
+        #expect(task.completedAt == today)
+
+        task.toggleCompleted(now: today)
+        #expect(!task.completed)
+        #expect(task.completedAt == nil)
     }
 
     @Test func storeStartsEmptyAndPersistsTasks() throws {
@@ -355,5 +382,55 @@ struct ProductivitySummaryViewModelTests {
         try context.save()
         #expect(summary.todayTotalMinutes == 30)
         #expect(summary.completedTasks.count == 1)
+    }
+}
+
+@MainActor
+struct StoreMigrationTests {
+    @Test func storeFromTheOldModelMigratesAndKeepsItsTasks() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).sqlite")
+        let scheduled = Date(timeIntervalSinceReferenceDate: 800_000_000)
+
+        // Write a real store with the first model version, as an older build of the app would have.
+        let momd = try #require(Bundle.main.url(forResource: "Sila", withExtension: "momd"))
+        let oldModel = try #require(NSManagedObjectModel(contentsOf: momd.appendingPathComponent("Sila.mom")))
+        let entity = try #require(oldModel.entitiesByName["StudyTask"])
+        #expect(entity.attributesByName["completedAt"] == nil)
+
+        let oldContainer = NSPersistentContainer(name: "Sila", managedObjectModel: oldModel)
+        oldContainer.persistentStoreDescriptions = [NSPersistentStoreDescription(url: url)]
+        oldContainer.loadPersistentStores { _, error in #expect(error == nil) }
+        let oldTask = NSManagedObject(entity: entity, insertInto: oldContainer.viewContext)
+        oldTask.setValue("Old task", forKey: "title")
+        oldTask.setValue(scheduled, forKey: "date")
+        oldTask.setValue(Int64(45), forKey: "duration")
+        oldTask.setValue(true, forKey: "completed")
+        try oldContainer.viewContext.save()
+        for store in oldContainer.persistentStoreCoordinator.persistentStores {
+            try oldContainer.persistentStoreCoordinator.remove(store)
+        }
+
+        // Open it the way the app does.
+        let context = PersistenceController(storeURL: url).container.viewContext
+        let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(ofType: NSSQLiteStoreType, at: url)
+        #expect(!oldModel.isConfiguration(withName: nil, compatibleWithStoreMetadata: metadata))
+
+        let tasks = try context.fetch(StudyTask.fetchRequest())
+        let task = try #require(tasks.first)
+        #expect(tasks.count == 1)
+        #expect(task.title == "Old task")
+        #expect(task.date == scheduled)
+        #expect(task.duration == 45)
+        #expect(task.completed)
+        #expect(task.completedAt == nil)
+
+        let summary = ProductivitySummaryViewModel(context: context, now: { scheduled })
+        #expect(summary.todayTotalMinutes == 45)
+
+        // A migrated task can store a completion date like any other.
+        task.toggleCompleted(now: scheduled)
+        task.toggleCompleted(now: scheduled)
+        try context.save()
+        #expect(task.completedAt == scheduled)
     }
 }

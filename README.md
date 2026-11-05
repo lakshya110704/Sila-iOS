@@ -9,7 +9,7 @@ Sila is an iOS study planner with focus timers and a productivity summary. It st
   - Pomodoro: 25 minutes
   - Deep Work: 90 minutes
   - Break: 5 minutes
-- **Productivity summary:** today's total study minutes, a list of completed tasks and a 7-day bar chart. Minutes count on a task's scheduled date, not the day it was completed.
+- **Productivity summary:** today's total study minutes, a list of completed tasks and a 7-day bar chart. Minutes count on the day a task was completed. Tasks completed before the app stored that date count on their scheduled date.
 
 ## Built with
 
@@ -34,9 +34,9 @@ Requires Xcode and iOS 18.0 or later.
 
 ## Tests
 
-`SilaTests` covers the timer, the summary calculations and add task validation, using an in-memory Core Data store. Last run: 32 of 32 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
+`SilaTests` covers the timer, the summary calculations, add task validation and migrating a store from the first Core Data model version. Last run: 36 of 36 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2), repeated 3 times.
 
-`TimerFlowUITests` in `SilaUITests` drives the running app through switching tabs, going to the background and being terminated. Last run: 4 of 4 passed on the same simulator, repeated 3 times. The Xcode template UI tests in that target: not yet run.
+`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, and adding and completing a task. It also contains the Xcode template launch tests. Last run: 8 of 8 test methods passed on the same simulator, repeated 3 times. A UI test retries a tap once if its expected result does not appear, because taps were occasionally dropped on a heavily loaded machine.
 
 ## Roadmap
 

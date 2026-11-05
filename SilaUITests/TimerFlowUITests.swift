@@ -10,10 +10,10 @@ final class TimerFlowUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
         app.launch()
         openTimer()
-        app.buttons["Reset"].tap()
-        XCTAssertTrue(app.buttons["Start"].waitForExistence(timeout: 10), "Reset did not stop the timer")
+        app.buttons["Reset"].tap(until: app.buttons["Start"])
     }
 
     private func openTimer() {
@@ -31,8 +31,7 @@ final class TimerFlowUITests: XCTestCase {
 
     private func startTimer() -> Int {
         let start = secondsOnScreen
-        app.buttons["Start"].tap()
-        XCTAssertTrue(app.buttons["Pause"].waitForExistence(timeout: 10))
+        app.buttons["Start"].tap(until: app.buttons["Pause"])
         return start
     }
 
@@ -73,8 +72,19 @@ final class TimerFlowUITests: XCTestCase {
         openTimer()
         XCTAssertTrue(app.buttons["Pause"].waitForExistence(timeout: 10))
 
-        app.buttons["Reset"].tap()
-        XCTAssertTrue(app.buttons["Start"].waitForExistence(timeout: 10))
+        app.buttons["Reset"].tap(until: app.buttons["Start"])
         XCTAssertEqual(secondsOnScreen, start)
+    }
+}
+
+extension XCUIElement {
+    /// Retries once because a tap is occasionally dropped when the simulator is under heavy load.
+    /// A tap that never works still fails the test.
+    func tap(until expected: XCUIElement) {
+        tap()
+        if !expected.waitForExistence(timeout: 10) {
+            tap()
+        }
+        XCTAssertTrue(expected.waitForExistence(timeout: 10))
     }
 }

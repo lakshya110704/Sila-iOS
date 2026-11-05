@@ -7,8 +7,21 @@
 
 import CoreData
 
+extension StudyTask {
+    func toggleCompleted(now: Date = Date()) {
+        completed.toggle()
+        completedAt = completed ? now : nil
+    }
+
+    /// The day this task's minutes count on. Tasks completed before completedAt existed have none, so use their scheduled date.
+    var countedDate: Date? {
+        completedAt ?? date
+    }
+}
+
 struct PersistenceController {
-    static let shared = PersistenceController()
+    // UI tests pass this flag so they start from an empty store each launch.
+    static let shared = PersistenceController(inMemory: CommandLine.arguments.contains("--in-memory-store"))
 
     @MainActor
     static let preview: PersistenceController = {
@@ -35,10 +48,12 @@ struct PersistenceController {
 
     let container: NSPersistentContainer
 
-    init(inMemory: Bool = false) {
+    init(inMemory: Bool = false, storeURL: URL? = nil) {
         container = NSPersistentContainer(name: "Sila")
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+        } else if let storeURL {
+            container.persistentStoreDescriptions.first!.url = storeURL
         }
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {

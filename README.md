@@ -1,47 +1,41 @@
-# Sila – iOS Study Planner App
+# Sila
 
-**Sila** is an iOS study planner with flexible focus timers and a daily productivity summary.
+Sila is an iOS study planner with focus timers and a productivity summary. It stores everything on the device.
 
----
+## Features
 
-## 🚀 Features
+- **Planner:** add, complete and delete study tasks (title, subject, date, duration). Tasks appear in one list sorted by date.
+- **Focus timer:** three modes, with start, pause and reset. The timer pauses when you leave the Timer tab.
+  - Pomodoro: 25 minutes
+  - Deep Work: 90 minutes
+  - Break: 5 minutes
+- **Productivity summary:** today's total study minutes, a list of completed tasks and a 7-day bar chart. Minutes count on a task's scheduled date, not the day it was completed.
 
-- 📅 **Planner** — add, complete and delete study tasks (title, subject, date, duration).
-- ⏱️ **Focus Timer** with three modes:
-  - Pomodoro (25 min focus / 5 min break)
-  - Deep Work (90 min)
-  - Break (5 min)
-- 📊 **Summary** — today's total study minutes, completed tasks and a 7-day chart.
+## Built with
 
-**Planned:** CoreML mode suggestions (Pomodoro / Deep Work / Break) based on study behavior, and an hourly breakdown in the summary.
+- SwiftUI
+- Core Data
+- Swift Charts
 
----
+## Setup
 
-## 🛠️ Built With
-
-- **SwiftUI** and **Swift Charts**
-- **CoreData** for local task persistence
-- iOS 18.5+
-
----
-
-## 🛠️ Setup Instructions
+Requires Xcode and iOS 18.0 or later.
 
 1. Clone the repo:
    ```bash
    git clone https://github.com/lakshya110704/Sila-iOS.git
    ```
 2. Open `Sila.xcodeproj` in Xcode.
-3. Build & run on an iOS 18.5+ simulator or a real device.
+3. Build and run on an iOS Simulator or a device.
 
----
+## Tests
 
-## 🧪 Tests
+`SilaTests` has unit tests for the timer durations and task storage. `SilaUITests` contains only the Xcode UI test templates: not yet run.
 
-Includes `SilaTests` and `SilaUITests` for basic validation and UI flow.
+## Roadmap
 
----
+- CoreML timer mode suggestions: not built
 
-## 📄 License
+## License
 
-MIT License. See `LICENSE` file for more info.
+MIT License. See `LICENSE`.

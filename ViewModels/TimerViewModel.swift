@@ -41,11 +41,30 @@ final class TimerViewModel: ObservableObject {
     @Published private(set) var isRunning = false
 
     private let clock: TimerClock
+    private let defaults: UserDefaults
     private var stopTicks: (() -> Void)?
     private var endDate: Date?
 
-    init(clock: TimerClock = .system) {
+    private enum Key {
+        static let mode = "timer.mode"
+        static let timeRemaining = "timer.timeRemaining"
+        static let endDate = "timer.endDate"
+    }
+
+    init(clock: TimerClock = .system, defaults: UserDefaults = .standard) {
         self.clock = clock
+        self.defaults = defaults
+
+        guard let saved = defaults.string(forKey: Key.mode).flatMap(TimerMode.init(rawValue:)) else { return }
+        // Set through the wrapper because mode's didSet would reset the saved state.
+        _mode = Published(initialValue: saved)
+        timeRemaining = defaults.integer(forKey: Key.timeRemaining)
+        if let savedEnd = defaults.object(forKey: Key.endDate) as? Date {
+            endDate = savedEnd
+            isRunning = true
+            scheduleTicks()
+            refresh()
+        }
     }
 
     var timeString: String {
@@ -56,18 +75,20 @@ final class TimerViewModel: ObservableObject {
         if timeRemaining == 0 { timeRemaining = mode.seconds }
         isRunning = true
         endDate = clock.now().addingTimeInterval(TimeInterval(timeRemaining))
-        stopTicks?()
-        stopTicks = clock.scheduleTicks { [weak self] in self?.refresh() }
+        scheduleTicks()
+        save()
     }
 
     func pause() {
         refresh()
         stop()
+        save()
     }
 
     func reset() {
         stop()
         timeRemaining = mode.seconds
+        save()
     }
 
     /// Recomputes from the end date, because ticks don't fire while the app is suspended.
@@ -77,7 +98,13 @@ final class TimerViewModel: ObservableObject {
         timeRemaining = max(0, Int(endDate.timeIntervalSince(clock.now()).rounded(.up)))
         if timeRemaining == 0 {
             stop()
+            save()
         }
+    }
+
+    private func scheduleTicks() {
+        stopTicks?()
+        stopTicks = clock.scheduleTicks { [weak self] in self?.refresh() }
     }
 
     private func stop() {
@@ -85,5 +112,12 @@ final class TimerViewModel: ObservableObject {
         endDate = nil
         stopTicks?()
         stopTicks = nil
+    }
+
+    // Saved on every state change, not on backgrounding, because iOS can terminate the app without warning.
+    private func save() {
+        defaults.set(mode.rawValue, forKey: Key.mode)
+        defaults.set(timeRemaining, forKey: Key.timeRemaining)
+        defaults.set(endDate, forKey: Key.endDate)
     }
 }

@@ -37,9 +37,11 @@ final class FakeClock {
 
 struct TimerViewModelTests {
     private let fake = FakeClock()
+    private let defaults = UserDefaults(suiteName: UUID().uuidString)!
 
+    /// Calling this again acts like the app launching after being terminated.
     private func makeTimer() -> TimerViewModel {
-        TimerViewModel(clock: fake.timerClock)
+        TimerViewModel(clock: fake.timerClock, defaults: defaults)
     }
 
     @Test func modeDurations() {
@@ -183,6 +185,63 @@ struct TimerViewModelTests {
         fake.passWithoutTicks(seconds: 0.5)
         timer.refresh()
         #expect(timer.timeRemaining == 25 * 60)
+    }
+
+    @Test func runningTimerSurvivesTermination() {
+        let timer = makeTimer()
+        timer.mode = .deepWork
+        timer.start()
+        fake.advance(seconds: 10)
+        fake.passWithoutTicks(seconds: 600)
+
+        let restored = makeTimer()
+        #expect(restored.mode == .deepWork)
+        #expect(restored.isRunning)
+        #expect(restored.timeRemaining == 90 * 60 - 610)
+
+        fake.advance(seconds: 5)
+        #expect(restored.timeRemaining == 90 * 60 - 615)
+    }
+
+    @Test func pausedTimerSurvivesTermination() {
+        let timer = makeTimer()
+        timer.mode = .deepWork
+        timer.start()
+        fake.advance(seconds: 10)
+        timer.pause()
+        fake.passWithoutTicks(seconds: 600)
+
+        let restored = makeTimer()
+        #expect(restored.mode == .deepWork)
+        #expect(!restored.isRunning)
+        #expect(restored.timeRemaining == 90 * 60 - 10)
+    }
+
+    @Test func timerFinishingWhileTerminatedStaysFinished() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        timer.start()
+        fake.passWithoutTicks(seconds: 3600)
+
+        let restored = makeTimer()
+        #expect(restored.timeRemaining == 0)
+        #expect(!restored.isRunning)
+
+        let restoredAgain = makeTimer()
+        #expect(restoredAgain.timeRemaining == 0)
+        #expect(!restoredAgain.isRunning)
+    }
+
+    @Test func resetTimerStaysResetAfterTermination() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 10)
+        timer.reset()
+        fake.passWithoutTicks(seconds: 600)
+
+        let restored = makeTimer()
+        #expect(!restored.isRunning)
+        #expect(restored.timeRemaining == 25 * 60)
     }
 }
 

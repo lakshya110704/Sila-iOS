@@ -1,28 +1,27 @@
 # Sila – iOS Study Planner App
 
-**Sila** is an intelligent iOS study planner designed to help students maximize productivity using AI-driven recommendations and flexible focus timers.
+**Sila** is an iOS study planner with flexible focus timers and a daily productivity summary.
 
 ---
 
 ## 🚀 Features
 
-- 📚 **Smart Study Suggestions** — CoreML recommends ideal modes like Pomodoro, Deep Work, or Break based on your study behavior.
-- ⏱️ **Custom Timer Modes**:
-  - Pomodoro (25/5)
-  - Deep Work (90/20)
-  - Custom Sessions
-- 📊 **Daily Productivity Summaries** with completed tasks, total minutes, and hourly breakdown.
-- 📅 **Planner View** to schedule tasks for the week.
-- 💡 **Adaptive Suggestions** powered by on-device learning.
+- 📅 **Planner** — add, complete and delete study tasks (title, subject, date, duration).
+- ⏱️ **Focus Timer** with three modes:
+  - Pomodoro (25 min focus / 5 min break)
+  - Deep Work (90 min)
+  - Break (5 min)
+- 📊 **Summary** — today's total study minutes, completed tasks and a 7-day chart.
+
+**Planned:** CoreML mode suggestions (Pomodoro / Deep Work / Break) based on study behavior, and an hourly breakdown in the summary.
 
 ---
 
-## 🧠 Powered By
+## 🛠️ Built With
 
-- **SwiftUI** for UI & architecture
-- **CoreML** for on-device predictions
+- **SwiftUI** and **Swift Charts**
 - **CoreData** for local task persistence
-- **MVVM Architecture** for clean state handling
+- iOS 18.5+
 
 ---
 
@@ -33,19 +32,7 @@
    git clone https://github.com/lakshya110704/Sila-iOS.git
    ```
 2. Open `Sila.xcodeproj` in Xcode.
-3. Drag `TimerModePredictor.mlmodel` into the `CoreML/` folder.
-4. Build & run on iOS Simulator or a real device.
-
----
-
-## 🤖 CoreML Model
-
-- Inputs: `hour`, `totalMinutes`, `completedTasks`
-- Outputs: `"Pomodoro"`, `"Deep Work"`, `"Break"`
-- Swift prediction usage:
-  ```swift
-  let prediction = try? model.prediction(hour: 14, totalMinutes: 90, completedTasks: 3)
-  ```
+3. Build & run on an iOS 18.5+ simulator or a real device.
 
 ---
 

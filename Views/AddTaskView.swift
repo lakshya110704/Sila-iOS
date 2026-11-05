@@ -7,6 +7,7 @@
 
 
 import SwiftUI
+import CoreData
 
 struct AddTaskView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -16,9 +17,14 @@ struct AddTaskView: View {
     @State private var subject = ""
     @State private var date = Date()
     @State private var duration = 30
+    @State private var saveFailed = false
+
+    private var trimmedTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 TextField("Title", text: $title)
                 TextField("Subject", text: $subject)
@@ -26,31 +32,40 @@ struct AddTaskView: View {
                 Stepper("\(duration) minutes", value: $duration, in: 5...240, step: 5)
             }
             .navigationTitle("New Study Task")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         addTask()
-                        dismiss()
                     }
-                    .disabled(title.isEmpty)
+                    .disabled(trimmedTitle.isEmpty)
                 }
+            }
+            .alert("Couldn't save task", isPresented: $saveFailed) {
+                Button("OK", role: .cancel) {}
             }
         }
     }
 
     private func addTask() {
         let newTask = StudyTask(context: viewContext)
-        newTask.title = title
-        newTask.subject = subject
+        newTask.title = trimmedTitle
+        newTask.subject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
         newTask.date = date
         newTask.duration = Int64(duration)
         newTask.completed = false
 
-        try? viewContext.save()
+        do {
+            try viewContext.save()
+            dismiss()
+        } catch {
+            viewContext.rollback()
+            saveFailed = true
+        }
     }
 }

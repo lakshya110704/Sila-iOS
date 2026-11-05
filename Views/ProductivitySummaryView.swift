@@ -54,51 +54,53 @@ struct ProductivitySummaryView: View {
     }
 
     var body: some View {
-        NavigationView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("📈 Today’s Total Study Time")
-                    .font(.headline)
-                Text("\(todayTotalMinutes) minutes")
-                    .font(.largeTitle)
-                    .bold()
+        NavigationStack {
+            List {
+                Section("📈 Today’s Total Study Time") {
+                    Text("\(todayTotalMinutes) minutes")
+                        .font(.largeTitle)
+                        .bold()
+                }
 
-                Divider()
+                Section("📅 Weekly Study Chart") {
+                    Chart {
+                        ForEach(past7DaysData) { data in
+                            BarMark(
+                                x: .value("Day", data.date, unit: .day),
+                                y: .value("Minutes", data.totalMinutes)
+                            )
+                        }
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: .stride(by: .day)) { _ in
+                            AxisGridLine()
+                            AxisValueLabel(format: .dateTime.weekday(.narrow)) // M, T, W...
+                        }
+                    }
+                    .frame(height: 200)
+                }
 
-                Text("✅ Completed Tasks")
-                    .font(.headline)
-
-                List {
+                Section("✅ Completed Tasks") {
+                    if completedTasks.isEmpty {
+                        Text("Nothing completed yet.")
+                            .foregroundColor(.secondary)
+                    }
                     ForEach(completedTasks) { task in
-                        VStack(alignment: .leading) {
-                            Text(task.title ?? "")
-                                .font(.headline)
-                            Text(task.subject ?? "")
-                                .font(.subheadline)
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(task.title ?? "Untitled")
+                                    .font(.headline)
+                                Text(task.subject ?? "")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Text("\(task.duration) min")
+                                .foregroundColor(.secondary)
                         }
                     }
                 }
-                
-                Text("📅 Weekly Study Chart")
-                    .font(.headline)
-
-                Chart {
-                    ForEach(past7DaysData) { data in
-                        BarMark(
-                            x: .value("Day", data.date, unit: .day),
-                            y: .value("Minutes", data.totalMinutes)
-                        )
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: .stride(by: .day)) { value in
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.weekday(.narrow)) // M, T, W...
-                    }
-                }
-                .frame(height: 200)
-                .padding(.bottom)
             }
-            .padding()
             .navigationTitle("Summary")
         }
     }

@@ -8,20 +8,29 @@
 
 import SwiftUI
 
-struct TimerDashboardView: View {
-    enum TimerMode: String, CaseIterable {
-        case pomodoro = "Pomodoro"
-        case deepWork = "Deep Work"
-        case breakMode = "Break"
-    }
+enum TimerMode: String, CaseIterable {
+    case pomodoro = "Pomodoro"
+    case deepWork = "Deep Work"
+    case breakMode = "Break"
 
+    /// Focus lengths match the README: Pomodoro 25/5, Deep Work 90/20.
+    var seconds: Int {
+        switch self {
+        case .pomodoro: return 25 * 60
+        case .deepWork: return 90 * 60
+        case .breakMode: return 5 * 60
+        }
+    }
+}
+
+struct TimerDashboardView: View {
     @State private var selectedMode: TimerMode = .pomodoro
-    @State private var timeRemaining: Int = 1500 // 25 mins default
+    @State private var timeRemaining: Int = TimerMode.pomodoro.seconds
     @State private var isRunning = false
     @State private var timer: Timer?
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 Picker("Mode", selection: $selectedMode) {
                     ForEach(TimerMode.allCases, id: \.self) {
@@ -33,6 +42,7 @@ struct TimerDashboardView: View {
 
                 Text(timeString)
                     .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .monospacedDigit()
                     .padding()
 
                 HStack(spacing: 40) {
@@ -47,29 +57,28 @@ struct TimerDashboardView: View {
                     .font(.title2)
                 }
             }
-            .onChange(of: selectedMode) { _ in
+            .onChange(of: selectedMode) {
                 resetTimer()
             }
+            .onDisappear(perform: pauseTimer)
             .navigationTitle("Focus Timer")
         }
     }
 
     private var timeString: String {
-        let minutes = timeRemaining / 60
-        let seconds = timeRemaining % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        String(format: "%02d:%02d", timeRemaining / 60, timeRemaining % 60)
     }
 
     private func startTimer() {
-        setDuration(for: selectedMode)
+        if timeRemaining == 0 { timeRemaining = selectedMode.seconds }
         isRunning = true
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             if timeRemaining > 0 {
                 timeRemaining -= 1
-            } else {
-                isRunning = false
-                timer?.invalidate()
+            }
+            if timeRemaining == 0 {
+                pauseTimer()
             }
         }
     }
@@ -77,22 +86,11 @@ struct TimerDashboardView: View {
     private func pauseTimer() {
         isRunning = false
         timer?.invalidate()
+        timer = nil
     }
 
     private func resetTimer() {
-        isRunning = false
-        timer?.invalidate()
-        setDuration(for: selectedMode)
-    }
-
-    private func setDuration(for mode: TimerMode) {
-        switch mode {
-        case .pomodoro:
-            timeRemaining = 1500 // 25 min
-        case .deepWork:
-            timeRemaining = 3600 // 60 min
-        case .breakMode:
-            timeRemaining = 600 // 10 min
-        }
+        pauseTimer()
+        timeRemaining = selectedMode.seconds
     }
 }

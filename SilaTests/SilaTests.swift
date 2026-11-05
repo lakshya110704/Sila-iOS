@@ -6,12 +6,27 @@
 //
 
 import Testing
+import CoreData
 @testable import Sila
 
 struct SilaTests {
 
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+    @Test func timerModeDurations() {
+        #expect(TimerMode.pomodoro.seconds == 25 * 60)
+        #expect(TimerMode.deepWork.seconds == 90 * 60)
+        #expect(TimerMode.breakMode.seconds == 5 * 60)
+    }
+
+    @Test func studyTaskPersists() throws {
+        let context = PersistenceController(inMemory: true).container.viewContext
+        let task = StudyTask(context: context)
+        task.title = "Read ch. 3"
+        task.duration = 45
+        try context.save()
+
+        let fetched = try context.fetch(StudyTask.fetchRequest())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.completed == false)
     }
 
 }

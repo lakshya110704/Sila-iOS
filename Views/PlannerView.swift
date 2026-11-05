@@ -21,25 +21,32 @@ struct PlannerView: View {
     @State private var showingAddTask = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 ForEach(tasks) { task in
                     HStack {
                         Button(action: {
                             task.completed.toggle()
-                            try? viewContext.save()
+                            save()
                         }) {
                             Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
                                 .foregroundColor(task.completed ? .green : .gray)
                         }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(task.completed ? "Mark incomplete" : "Mark complete")
 
                         VStack(alignment: .leading) {
                             Text(task.title ?? "Untitled")
                                 .font(.headline)
                                 .strikethrough(task.completed, color: .gray)
-                            Text(task.subject ?? "No Subject")
+                            Text(task.subject.flatMap { $0.isEmpty ? nil : $0 } ?? "No Subject")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                            if let date = task.date {
+                                Text(date.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
 
                         Spacer()
@@ -47,6 +54,12 @@ struct PlannerView: View {
                     }
                 }
                 .onDelete(perform: deleteTask)
+            }
+            .overlay {
+                if tasks.isEmpty {
+                    ContentUnavailableView("No Tasks", systemImage: "calendar.badge.plus",
+                                           description: Text("Tap + to plan a study session."))
+                }
             }
             .navigationTitle("Study Planner")
             .toolbar {
@@ -69,6 +82,14 @@ struct PlannerView: View {
         for index in offsets {
             viewContext.delete(tasks[index])
         }
-        try? viewContext.save()
+        save()
+    }
+
+    private func save() {
+        do {
+            try viewContext.save()
+        } catch {
+            viewContext.rollback()
+        }
     }
 }

@@ -21,10 +21,11 @@ enum TimerMode: String, CaseIterable {
 
 /// Drives the countdown. Injected so tests can run it without real time passing.
 struct TimerClock {
+    var now: () -> Date
     /// Calls the handler once a second and returns a closure that stops it.
     var scheduleTicks: (@escaping () -> Void) -> () -> Void
 
-    static let system = TimerClock { handler in
+    static let system = TimerClock(now: Date.init) { handler in
         let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in handler() }
         return { timer.invalidate() }
     }
@@ -41,6 +42,7 @@ final class TimerViewModel: ObservableObject {
 
     private let clock: TimerClock
     private var stopTicks: (() -> Void)?
+    private var endDate: Date?
 
     init(clock: TimerClock = .system) {
         self.clock = clock
@@ -53,27 +55,35 @@ final class TimerViewModel: ObservableObject {
     func start() {
         if timeRemaining == 0 { timeRemaining = mode.seconds }
         isRunning = true
+        endDate = clock.now().addingTimeInterval(TimeInterval(timeRemaining))
         stopTicks?()
-        stopTicks = clock.scheduleTicks { [weak self] in self?.tick() }
+        stopTicks = clock.scheduleTicks { [weak self] in self?.refresh() }
     }
 
     func pause() {
-        isRunning = false
-        stopTicks?()
-        stopTicks = nil
+        refresh()
+        stop()
     }
 
     func reset() {
-        pause()
+        stop()
         timeRemaining = mode.seconds
     }
 
-    private func tick() {
-        if timeRemaining > 0 {
-            timeRemaining -= 1
-        }
+    /// Recomputes from the end date, because ticks don't fire while the app is suspended.
+    /// shortcut: changing the device clock shifts the countdown, use a monotonic clock if that matters.
+    func refresh() {
+        guard isRunning, let endDate else { return }
+        timeRemaining = max(0, Int(endDate.timeIntervalSince(clock.now()).rounded(.up)))
         if timeRemaining == 0 {
-            pause()
+            stop()
         }
+    }
+
+    private func stop() {
+        isRunning = false
+        endDate = nil
+        stopTicks?()
+        stopTicks = nil
     }
 }

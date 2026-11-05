@@ -10,6 +10,7 @@ import SwiftUI
 
 struct TimerDashboardView: View {
     @StateObject private var viewModel = TimerViewModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -40,6 +41,9 @@ struct TimerDashboardView: View {
                 }
             }
             .onDisappear(perform: viewModel.pause)
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { viewModel.refresh() }
+            }
             .navigationTitle("Focus Timer")
         }
     }

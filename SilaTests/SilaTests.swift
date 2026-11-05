@@ -12,16 +12,26 @@ import CoreData
 /// Stands in for the real clock so tests control when the timer ticks.
 final class FakeClock {
     private var handler: (() -> Void)?
+    private var now = Date(timeIntervalSinceReferenceDate: 0)
 
     var timerClock: TimerClock {
-        TimerClock { handler in
+        TimerClock(now: { self.now }) { handler in
             self.handler = handler
             return { self.handler = nil }
         }
     }
 
+    /// Time passes with the app in the foreground, so ticks fire.
     func advance(seconds: Int) {
-        for _ in 0..<seconds { handler?() }
+        for _ in 0..<seconds {
+            now += 1
+            handler?()
+        }
+    }
+
+    /// Time passes with the app suspended, so no ticks fire.
+    func passWithoutTicks(seconds: TimeInterval) {
+        now += seconds
     }
 }
 
@@ -112,6 +122,85 @@ struct TimerViewModelTests {
         fake.advance(seconds: 10)
         #expect(!timer.isRunning)
         #expect(timer.timeRemaining == 90 * 60)
+    }
+
+    @Test func timeInTheBackgroundCountsOnReturn() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 10)
+        fake.passWithoutTicks(seconds: 600)
+        #expect(timer.timeRemaining == 25 * 60 - 10)
+
+        timer.refresh()
+        #expect(timer.isRunning)
+        #expect(timer.timeRemaining == 25 * 60 - 610)
+    }
+
+    @Test func firstTickAfterBackgroundCatchesUp() {
+        let timer = makeTimer()
+        timer.start()
+        fake.passWithoutTicks(seconds: 600)
+        fake.advance(seconds: 1)
+        #expect(timer.timeRemaining == 25 * 60 - 601)
+    }
+
+    @Test func finishingInTheBackgroundStopsAtZero() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        timer.start()
+        fake.passWithoutTicks(seconds: 3600)
+        timer.refresh()
+        #expect(timer.timeRemaining == 0)
+        #expect(!timer.isRunning)
+    }
+
+    @Test func pausedTimerIgnoresTimeInTheBackground() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 10)
+        timer.pause()
+        fake.passWithoutTicks(seconds: 600)
+        timer.refresh()
+        #expect(!timer.isRunning)
+        #expect(timer.timeRemaining == 25 * 60 - 10)
+
+        timer.start()
+        fake.advance(seconds: 5)
+        #expect(timer.timeRemaining == 25 * 60 - 15)
+    }
+
+    @Test func pauseCountsTimeSinceTheLastTick() {
+        let timer = makeTimer()
+        timer.start()
+        fake.passWithoutTicks(seconds: 600)
+        timer.pause()
+        #expect(timer.timeRemaining == 25 * 60 - 600)
+    }
+
+    @Test func partOfASecondRoundsUp() {
+        let timer = makeTimer()
+        timer.start()
+        fake.passWithoutTicks(seconds: 0.5)
+        timer.refresh()
+        #expect(timer.timeRemaining == 25 * 60)
+    }
+}
+
+struct AddTaskValidationTests {
+    @Test func acceptsATitleAndPositiveDuration() {
+        #expect(AddTaskView.isValid(title: "Read chapter 3", duration: 30))
+    }
+
+    @Test func rejectsAnEmptyTitle() {
+        #expect(!AddTaskView.isValid(title: "", duration: 30))
+    }
+
+    @Test func rejectsAWhitespaceTitle() {
+        #expect(!AddTaskView.isValid(title: "  \n ", duration: 30))
+    }
+
+    @Test func rejectsAZeroDuration() {
+        #expect(!AddTaskView.isValid(title: "Read chapter 3", duration: 0))
     }
 }
 

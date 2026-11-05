@@ -23,6 +23,10 @@ struct AddTaskView: View {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    static func isValid(title: String, duration: Int) -> Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && duration > 0
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -43,7 +47,7 @@ struct AddTaskView: View {
                     Button("Save") {
                         addTask()
                     }
-                    .disabled(trimmedTitle.isEmpty)
+                    .disabled(!Self.isValid(title: title, duration: duration))
                 }
             }
             .alert("Couldn't save task", isPresented: $saveFailed) {

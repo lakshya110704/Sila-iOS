@@ -4,8 +4,8 @@ Sila is an iOS study planner with focus timers and a productivity summary. It st
 
 ## Features
 
-- **Planner:** add, complete and delete study tasks (title, subject, date, duration). Tasks appear in one list sorted by date.
-- **Focus timer:** three modes, with start, pause and reset. The timer pauses when you leave the Timer tab.
+- **Planner:** add, complete and delete study tasks (title, subject, date, duration). Tasks appear in one list sorted by date. Save stays disabled until the title is not blank and the duration is above zero.
+- **Focus timer:** three modes, with start, pause and reset. The timer pauses when you leave the Timer tab. It works out remaining time from the clock, so time spent in the background still counts. It does not send a notification when it finishes.
   - Pomodoro: 25 minutes
   - Deep Work: 90 minutes
   - Break: 5 minutes
@@ -34,7 +34,7 @@ Requires Xcode and iOS 18.0 or later.
 
 ## Tests
 
-`SilaTests` covers the timer and the summary calculations, using an in-memory Core Data store. Last run: 18 of 18 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
+`SilaTests` covers the timer, the summary calculations and add task validation, using an in-memory Core Data store. Last run: 28 of 28 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
 
 `SilaUITests` contains only the Xcode UI test templates: not yet run.
 

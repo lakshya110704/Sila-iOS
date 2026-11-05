@@ -10,61 +10,25 @@ import SwiftUI
 import CoreData
 import Charts
 
-struct DailyStudyData: Identifiable {
-    var id: Date { date }
-    let date: Date
-    let totalMinutes: Int
-}
-
 struct ProductivitySummaryView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+    @StateObject private var viewModel: ProductivitySummaryViewModel
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \StudyTask.date, ascending: false)],
-        predicate: NSPredicate(format: "completed == true"),
-        animation: .default
-    )
-    private var completedTasks: FetchedResults<StudyTask>
-
-    private var todayTotalMinutes: Int {
-        let today = Calendar.current.startOfDay(for: Date())
-        let filtered = completedTasks.filter {
-            guard let date = $0.date else { return false }
-            return Calendar.current.isDate(date, inSameDayAs: today)
-        }
-        return filtered.reduce(0) { $0 + Int($1.duration) }
-    }
-    
-    private var past7DaysData: [DailyStudyData] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        
-        return (0..<7).map { offset in
-            let date = calendar.date(byAdding: .day, value: -offset, to: today)!
-            let total = completedTasks
-                .filter { task in
-                    guard let taskDate = task.date else { return false }
-                    return calendar.isDate(taskDate, inSameDayAs: date)
-                }
-                .reduce(0) { $0 + Int($1.duration) }
-            
-            return DailyStudyData(date: date, totalMinutes: total)
-        }
-        .reversed() // Oldest to newest
+    init(context: NSManagedObjectContext) {
+        _viewModel = StateObject(wrappedValue: ProductivitySummaryViewModel(context: context))
     }
 
     var body: some View {
         NavigationStack {
             List {
                 Section("📈 Today’s Total Study Time") {
-                    Text("\(todayTotalMinutes) minutes")
+                    Text("\(viewModel.todayTotalMinutes) minutes")
                         .font(.largeTitle)
                         .bold()
                 }
 
                 Section("📅 Weekly Study Chart") {
                     Chart {
-                        ForEach(past7DaysData) { data in
+                        ForEach(viewModel.past7DaysData) { data in
                             BarMark(
                                 x: .value("Day", data.date, unit: .day),
                                 y: .value("Minutes", data.totalMinutes)
@@ -81,11 +45,11 @@ struct ProductivitySummaryView: View {
                 }
 
                 Section("✅ Completed Tasks") {
-                    if completedTasks.isEmpty {
+                    if viewModel.completedTasks.isEmpty {
                         Text("Nothing completed yet.")
                             .foregroundColor(.secondary)
                     }
-                    ForEach(completedTasks) { task in
+                    ForEach(viewModel.completedTasks) { task in
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(task.title ?? "Untitled")

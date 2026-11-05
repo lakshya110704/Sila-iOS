@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+
     var body: some View {
         TabView {
             PlannerView()
@@ -13,7 +15,7 @@ struct ContentView: View {
                     Label("Timer", systemImage: "timer")
                 }
 
-            ProductivitySummaryView()
+            ProductivitySummaryView(context: viewContext)
                 .tabItem {
                     Label("Summary", systemImage: "chart.bar.fill")
                 }

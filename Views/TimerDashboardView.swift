@@ -26,6 +26,7 @@ struct TimerDashboardView: View {
                 Text(viewModel.timeString)
                     .font(.system(size: 64, weight: .bold, design: .rounded))
                     .monospacedDigit()
+                    .accessibilityIdentifier("timeRemaining")
                     .padding()
 
                 HStack(spacing: 40) {
@@ -40,7 +41,6 @@ struct TimerDashboardView: View {
                     .font(.title2)
                 }
             }
-            .onDisappear(perform: viewModel.pause)
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { viewModel.refresh() }
             }

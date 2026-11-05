@@ -17,6 +17,10 @@ Sila is an iOS study planner with focus timers and a productivity summary. It st
 - Core Data
 - Swift Charts
 
+## Architecture
+
+The timer and summary screens use MVVM: `TimerViewModel` and `ProductivitySummaryViewModel` hold their logic. The planner and add task screens read and write Core Data directly from the view.
+
 ## Setup
 
 Requires Xcode and iOS 18.0 or later.

@@ -78,7 +78,7 @@ final class TimerFlowUITests: XCTestCase {
 }
 
 extension XCUIElement {
-    /// Retries once because a tap is occasionally dropped when the simulator is under heavy load.
+    /// Retries once because a tap occasionally had no visible effect in earlier runs, cause unknown.
     /// A tap that never works still fails the test.
     func tap(until expected: XCUIElement) {
         tap()

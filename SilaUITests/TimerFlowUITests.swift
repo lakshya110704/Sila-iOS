@@ -13,6 +13,7 @@ final class TimerFlowUITests: XCTestCase {
         app.launch()
         openTimer()
         app.buttons["Reset"].tap()
+        XCTAssertTrue(app.buttons["Start"].waitForExistence(timeout: 10), "Reset did not stop the timer")
     }
 
     private func openTimer() {
@@ -54,5 +55,26 @@ final class TimerFlowUITests: XCTestCase {
         sleep(15)
         app.activate()
         assertStillRunning(start: start, afterAtLeast: 15)
+    }
+
+    func testRunningTimerSurvivesTermination() {
+        let start = startTimer()
+        app.terminate()
+        sleep(15)
+        app.launch()
+        openTimer()
+        assertStillRunning(start: start, afterAtLeast: 15)
+    }
+
+    func testResetStopsARestoredTimer() {
+        let start = startTimer()
+        app.terminate()
+        app.launch()
+        openTimer()
+        XCTAssertTrue(app.buttons["Pause"].waitForExistence(timeout: 10))
+
+        app.buttons["Reset"].tap()
+        XCTAssertTrue(app.buttons["Start"].waitForExistence(timeout: 10))
+        XCTAssertEqual(secondsOnScreen, start)
     }
 }

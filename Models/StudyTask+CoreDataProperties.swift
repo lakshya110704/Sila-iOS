@@ -17,6 +17,7 @@ extension StudyTask {
     }
 
     @NSManaged public var completed: Bool
+    @NSManaged public var completedAt: Date?
     @NSManaged public var date: Date?
     @NSManaged public var duration: Int64
     @NSManaged public var subject: String?

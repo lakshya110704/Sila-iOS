@@ -44,7 +44,7 @@ final class ProductivitySummaryViewModel: ObservableObject {
     private func totalMinutes(on day: Date) -> Int {
         completedTasks
             .filter { task in
-                guard let date = task.date else { return false }
+                guard let date = task.countedDate else { return false }
                 return Calendar.current.isDate(date, inSameDayAs: day)
             }
             .reduce(0) { $0 + Int($1.duration) }

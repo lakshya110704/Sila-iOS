@@ -31,6 +31,8 @@ struct PlannerView: View {
                         }) {
                             Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
                                 .foregroundColor(task.completed ? .green : .gray)
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel(task.completed ? "Mark incomplete" : "Mark complete")

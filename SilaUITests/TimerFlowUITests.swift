@@ -40,6 +40,11 @@ final class TimerFlowUITests: XCTestCase {
         XCTAssertLessThanOrEqual(secondsOnScreen, start - seconds)
     }
 
+    func testTimerButtonsMeetTheMinimumTapSize() {
+        XCTAssertGreaterThanOrEqual(app.buttons["Start"].frame.height, 44)
+        XCTAssertGreaterThanOrEqual(app.buttons["Reset"].frame.height, 44)
+    }
+
     func testTimerKeepsRunningAcrossTabs() {
         let start = startTimer()
         app.tabBars.buttons["Planner"].tap()

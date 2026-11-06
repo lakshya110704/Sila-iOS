@@ -34,9 +34,9 @@ Requires Xcode and iOS 18.0 or later.
 
 ## Tests
 
-`SilaTests` covers the timer, the summary calculations, add task validation and migrating a store from the first Core Data model version. Last run: 36 of 36 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2), repeated 3 times.
+`SilaTests` covers the timer, the summary calculations, add task validation and migrating a store from the first Core Data model version. Last run: 36 of 36 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
 
-`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, and adding and completing a task. It also contains the Xcode template launch tests. Last run: 8 of 8 test methods passed on the same simulator, repeated 3 times. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect during earlier runs. The cause is unknown.
+`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, and adding and completing a task, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 8 of 9 test methods passed on the same simulator. The template `testLaunchPerformance` was terminated while the Mac was overloaded, then passed when rerun alone. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
 
 ## Roadmap
 

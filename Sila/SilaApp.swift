@@ -6,10 +6,16 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct SilaApp: App {
     let persistenceController = PersistenceController.shared
+    private let notificationDelegate = ForegroundNotificationDelegate()
+
+    init() {
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+    }
 
     var body: some Scene {
         WindowGroup {

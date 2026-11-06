@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import UserNotifications
 
 enum TimerMode: String, CaseIterable {
     case pomodoro = "Pomodoro"
@@ -31,6 +32,42 @@ struct TimerClock {
     }
 }
 
+/// Tells the user when a timer finishes. Injected so tests don't touch the real notification center.
+struct TimerNotifier {
+    var scheduleFinish: (_ mode: TimerMode, _ secondsFromNow: Int) -> Void
+    var cancelFinish: () -> Void
+
+    private static let requestID = "timer.finished"
+
+    static let system = TimerNotifier(
+        scheduleFinish: { mode, seconds in
+            let center = UNUserNotificationCenter.current()
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in
+                let content = UNMutableNotificationContent()
+                content.title = "\(mode.rawValue) finished"
+                content.body = "Your timer is done."
+                content.sound = .default
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(max(1, seconds)), repeats: false)
+                center.add(UNNotificationRequest(identifier: requestID, content: content, trigger: trigger))
+            }
+        },
+        cancelFinish: {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [requestID])
+        }
+    )
+}
+
+/// Shows the notification as a banner when the app is already open, which iOS doesn't do by default.
+final class ForegroundNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+}
+
 final class TimerViewModel: ObservableObject {
     @Published var mode: TimerMode = .pomodoro {
         didSet {
@@ -42,6 +79,7 @@ final class TimerViewModel: ObservableObject {
 
     private let clock: TimerClock
     private let defaults: UserDefaults
+    private let notifier: TimerNotifier
     private var stopTicks: (() -> Void)?
     private var endDate: Date?
 
@@ -51,9 +89,10 @@ final class TimerViewModel: ObservableObject {
         static let endDate = "timer.endDate"
     }
 
-    init(clock: TimerClock = .system, defaults: UserDefaults = .standard) {
+    init(clock: TimerClock = .system, defaults: UserDefaults = .standard, notifier: TimerNotifier = .system) {
         self.clock = clock
         self.defaults = defaults
+        self.notifier = notifier
 
         guard let saved = defaults.string(forKey: Key.mode).flatMap(TimerMode.init(rawValue:)) else { return }
         // Set through the wrapper because mode's didSet would reset the saved state.
@@ -76,17 +115,20 @@ final class TimerViewModel: ObservableObject {
         isRunning = true
         endDate = clock.now().addingTimeInterval(TimeInterval(timeRemaining))
         scheduleTicks()
+        notifier.scheduleFinish(mode, timeRemaining)
         save()
     }
 
     func pause() {
         refresh()
         stop()
+        notifier.cancelFinish()
         save()
     }
 
     func reset() {
         stop()
+        notifier.cancelFinish()
         timeRemaining = mode.seconds
         save()
     }

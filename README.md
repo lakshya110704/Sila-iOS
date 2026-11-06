@@ -5,7 +5,7 @@ Sila is an iOS study planner with focus timers and a productivity summary. It st
 ## Features
 
 - **Planner:** add, complete and delete study tasks (title, subject, date, duration). Tasks appear in one list sorted by date. Save stays disabled until the title is not blank and the duration is above zero.
-- **Focus timer:** three modes, with start, pause and reset. The timer keeps running when you switch tabs. It works out remaining time from the clock, so time spent in the background still counts. Its state is saved, so a running or paused timer carries on if iOS terminates the app. It does not send a notification when it finishes.
+- **Focus timer:** three modes, with start, pause and reset. The timer keeps running when you switch tabs. It works out remaining time from the clock, so time spent in the background still counts. Its state is saved, so a running or paused timer carries on if iOS terminates the app. It sends a notification when it finishes, if you allow notifications.
   - Pomodoro: 25 minutes
   - Deep Work: 90 minutes
   - Break: 5 minutes
@@ -34,7 +34,7 @@ Requires Xcode and iOS 18.0 or later.
 
 ## Tests
 
-`SilaTests` covers the timer, the summary calculations, add task validation and migrating a store from the first Core Data model version. Last run: 36 of 36 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
+`SilaTests` covers the timer, the summary calculations, add task validation and migrating a store from the first Core Data model version. Last run: 40 of 40 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
 
 `SilaUITests` drives the running app through switching tabs, going to the background, being terminated, and adding and completing a task, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 8 of 9 test methods passed on the same simulator. The template `testLaunchPerformance` was terminated while the Mac was overloaded, then passed when rerun alone. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
 

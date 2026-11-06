@@ -32,6 +32,11 @@ final class TimerFlowUITests: XCTestCase {
     private func startTimer() -> Int {
         let start = secondsOnScreen
         app.buttons["Start"].tap(until: app.buttons["Pause"])
+        // Pressing Start asks for notification permission on a fresh install.
+        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
+        if allow.waitForExistence(timeout: 2) {
+            allow.tap()
+        }
         return start
     }
 

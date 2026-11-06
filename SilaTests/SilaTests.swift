@@ -35,13 +35,75 @@ final class FakeClock {
     }
 }
 
+/// Records what the timer asks the notification center to do.
+final class NotificationLog {
+    var events: [String] = []
+
+    var notifier: TimerNotifier {
+        TimerNotifier(
+            scheduleFinish: { mode, seconds in self.events.append("schedule \(mode.rawValue) \(seconds)") },
+            cancelFinish: { self.events.append("cancel") }
+        )
+    }
+}
+
 struct TimerViewModelTests {
     private let fake = FakeClock()
     private let defaults = UserDefaults(suiteName: UUID().uuidString)!
 
+    private let notifications = NotificationLog()
+
     /// Calling this again acts like the app launching after being terminated.
     private func makeTimer() -> TimerViewModel {
-        TimerViewModel(clock: fake.timerClock, defaults: defaults)
+        TimerViewModel(clock: fake.timerClock, defaults: defaults, notifier: notifications.notifier)
+    }
+
+    @Test func startSchedulesANotificationForTheTimeLeft() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        notifications.events.removeAll()
+
+        timer.start()
+        #expect(notifications.events == ["schedule Break 300"])
+    }
+
+    @Test func resumingSchedulesOnlyTheTimeLeft() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 100)
+        timer.pause()
+        notifications.events.removeAll()
+
+        timer.start()
+        #expect(notifications.events == ["schedule Pomodoro 1400"])
+    }
+
+    @Test func pauseResetAndChangingModeCancelTheNotification() {
+        let timer = makeTimer()
+        timer.start()
+        notifications.events.removeAll()
+        timer.pause()
+        #expect(notifications.events == ["cancel"])
+
+        timer.start()
+        notifications.events.removeAll()
+        timer.reset()
+        #expect(notifications.events == ["cancel"])
+
+        timer.start()
+        notifications.events.removeAll()
+        timer.mode = .deepWork
+        #expect(notifications.events == ["cancel"])
+    }
+
+    @Test func restoringARunningTimerLeavesItsNotificationAlone() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 10)
+        notifications.events.removeAll()
+
+        _ = makeTimer()
+        #expect(notifications.events.isEmpty)
     }
 
     @Test func modeDurations() {

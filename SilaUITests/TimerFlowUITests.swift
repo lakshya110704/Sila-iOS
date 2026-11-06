@@ -50,6 +50,27 @@ final class TimerFlowUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(app.buttons["Reset"].frame.height, 44)
     }
 
+    func testBothSuggestionsShowAndGeneralCanBeUsed() {
+        XCTAssertTrue(app.staticTexts["General"].exists)
+        XCTAssertTrue(app.staticTexts["Your History"].exists)
+
+        let mode = app.staticTexts["generalSuggestionMode"].label
+        let use = app.buttons["generalSuggestionUse"]
+        XCTAssertTrue(use.exists)
+        // Choose a different mode first, so using the suggestion has something to change.
+        let other = mode == "Pomodoro" ? "Break" : "Pomodoro"
+        app.buttons[other].tap()
+        XCTAssertTrue(use.isEnabled)
+        use.tap()
+        XCTAssertTrue(app.buttons[mode].isSelected)
+        XCTAssertFalse(use.isEnabled)
+
+        // A running timer can't be replaced by tapping a suggestion.
+        app.buttons[other].tap()
+        _ = startTimer()
+        XCTAssertFalse(use.isEnabled)
+    }
+
     func testTimerKeepsRunningAcrossTabs() {
         let start = startTimer()
         app.tabBars.buttons["Planner"].tap()

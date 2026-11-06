@@ -68,15 +68,114 @@ final class NotificationLog {
     }
 }
 
+/// Records the sessions the timer reports as ended.
+final class EndedSessions {
+    var items: [(mode: TimerMode, length: TimeInterval, finished: Bool)] = []
+}
+
 struct TimerViewModelTests {
     private let fake = FakeClock()
     private let defaults = UserDefaults(suiteName: UUID().uuidString)!
 
     private let notifications = NotificationLog()
+    private let ended = EndedSessions()
 
     /// Calling this again acts like the app launching after being terminated.
     private func makeTimer() -> TimerViewModel {
-        TimerViewModel(clock: fake.timerClock, defaults: defaults, notifier: notifications.notifier)
+        TimerViewModel(clock: fake.timerClock, defaults: defaults, notifier: notifications.notifier) { mode, start, end, finished in
+            self.ended.items.append((mode, end.timeIntervalSince(start), finished))
+        }
+    }
+
+    @Test func finishingRecordsAFinishedSession() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        timer.start()
+        fake.advance(seconds: 5 * 60)
+
+        #expect(ended.items.count == 1)
+        #expect(ended.items[0].mode == .breakMode)
+        #expect(ended.items[0].length == 300)
+        #expect(ended.items[0].finished)
+    }
+
+    @Test func resettingAfterAMinuteRecordsAnUnfinishedSession() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 60)
+        timer.reset()
+
+        #expect(ended.items.count == 1)
+        #expect(ended.items[0].mode == .pomodoro)
+        #expect(!ended.items[0].finished)
+    }
+
+    @Test func resettingWithinAMinuteRecordsNothing() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 59)
+        timer.reset()
+        #expect(ended.items.isEmpty)
+    }
+
+    @Test func resettingAnIdleTimerRecordsNothing() {
+        let timer = makeTimer()
+        fake.advance(seconds: 100)
+        timer.reset()
+        #expect(ended.items.isEmpty)
+    }
+
+    @Test func changingModeRecordsTheSessionUnderItsOwnMode() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 120)
+        timer.mode = .deepWork
+
+        #expect(ended.items.count == 1)
+        #expect(ended.items[0].mode == .pomodoro)
+        #expect(!ended.items[0].finished)
+    }
+
+    @Test func pausingAndResumingIsOneSession() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        timer.start()
+        fake.advance(seconds: 100)
+        timer.pause()
+        #expect(ended.items.isEmpty)
+        fake.passWithoutTicks(seconds: 50)
+        timer.start()
+        fake.advance(seconds: 200)
+
+        #expect(ended.items.count == 1)
+        #expect(ended.items[0].finished)
+        #expect(ended.items[0].length == 350)
+    }
+
+    @Test func aSessionThatFinishesWhileTerminatedIsRecordedOnLaunch() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        timer.start()
+        fake.passWithoutTicks(seconds: 3600)
+
+        _ = makeTimer()
+        #expect(ended.items.count == 1)
+        #expect(ended.items[0].mode == .breakMode)
+        #expect(ended.items[0].finished)
+        #expect(ended.items[0].length == 300)
+
+        _ = makeTimer()
+        #expect(ended.items.count == 1)
+    }
+
+    @Test func aFinishedTimerStartedAgainIsANewSession() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        timer.start()
+        fake.advance(seconds: 300)
+        timer.start()
+        fake.advance(seconds: 300)
+        #expect(ended.items.count == 2)
     }
 
     @Test func startSchedulesANotificationForTheTimeLeft() {
@@ -533,6 +632,37 @@ struct ProductivitySummaryViewModelTests {
 
 @MainActor
 struct StoreMigrationTests {
+    @Test func storeFromTheSecondModelKeepsCompletionDatesAndGainsSessions() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).sqlite")
+        let completedAt = Date(timeIntervalSinceReferenceDate: 800_000_000)
+
+        let momd = try #require(Bundle.main.url(forResource: "Sila", withExtension: "momd"))
+        let oldModel = try #require(NSManagedObjectModel(contentsOf: momd.appendingPathComponent("Sila 2.mom")))
+        #expect(oldModel.entitiesByName["TimerSession"] == nil)
+        let entity = try #require(oldModel.entitiesByName["StudyTask"])
+
+        let oldContainer = NSPersistentContainer(name: "Sila", managedObjectModel: oldModel)
+        oldContainer.persistentStoreDescriptions = [NSPersistentStoreDescription(url: url)]
+        oldContainer.loadPersistentStores { _, error in #expect(error == nil) }
+        let oldTask = NSManagedObject(entity: entity, insertInto: oldContainer.viewContext)
+        oldTask.setValue("Second model task", forKey: "title")
+        oldTask.setValue(true, forKey: "completed")
+        oldTask.setValue(completedAt, forKey: "completedAt")
+        try oldContainer.viewContext.save()
+        for store in oldContainer.persistentStoreCoordinator.persistentStores {
+            try oldContainer.persistentStoreCoordinator.remove(store)
+        }
+
+        let context = PersistenceController(storeURL: url).container.viewContext
+        let task = try #require(try context.fetch(StudyTask.fetchRequest()).first)
+        #expect(task.title == "Second model task")
+        #expect(task.completedAt == completedAt)
+
+        TimerSession.record(mode: .pomodoro, startedAt: completedAt, endedAt: completedAt, finished: true, in: context)
+        let sessions = try context.fetch(NSFetchRequest<TimerSession>(entityName: "TimerSession"))
+        #expect(sessions.count == 1)
+    }
+
     @Test func storeFromTheOldModelMigratesAndKeepsItsTasks() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).sqlite")
         let scheduled = Date(timeIntervalSinceReferenceDate: 800_000_000)
@@ -578,6 +708,117 @@ struct StoreMigrationTests {
         task.toggleCompleted(now: scheduled)
         try context.save()
         #expect(task.completedAt == scheduled)
+    }
+}
+
+@MainActor
+struct StudySuggestionsTests {
+    private func date(hour: Int, day: Int = 15) -> Date {
+        Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: day, hour: hour))!
+    }
+
+    private func sessions(_ mode: TimerMode, finished: Int, unfinished: Int = 0, hour: Int = 9, day: Int = 10) -> [SessionRecord] {
+        let start = date(hour: hour, day: day)
+        let end = start.addingTimeInterval(TimeInterval(mode.seconds))
+        return (0..<finished).map { _ in SessionRecord(mode: mode, startedAt: start, endedAt: end, finished: true) }
+            + (0..<unfinished).map { _ in SessionRecord(mode: mode, startedAt: start, endedAt: end, finished: false) }
+    }
+
+    @Test func partsOfTheDayCoverEveryHour() {
+        #expect(PartOfDay(hour: 4) == .night)
+        #expect(PartOfDay(hour: 5) == .morning)
+        #expect(PartOfDay(hour: 11) == .morning)
+        #expect(PartOfDay(hour: 12) == .afternoon)
+        #expect(PartOfDay(hour: 17) == .afternoon)
+        #expect(PartOfDay(hour: 18) == .evening)
+        #expect(PartOfDay(hour: 21) == .evening)
+        #expect(PartOfDay(hour: 22) == .night)
+    }
+
+    @Test func generalSuggestionFollowsTheTimeOfDay() {
+        #expect(StudySuggestions.general(sessions: [], now: date(hour: 9)).mode == .deepWork)
+        #expect(StudySuggestions.general(sessions: [], now: date(hour: 14)).mode == .pomodoro)
+        #expect(StudySuggestions.general(sessions: [], now: date(hour: 20)).mode == .pomodoro)
+        #expect(StudySuggestions.general(sessions: [], now: date(hour: 23)).mode == .breakMode)
+    }
+
+    @Test func generalSuggestsABreakRightAfterFinishingFocus() {
+        let now = date(hour: 9)
+        let justDone = SessionRecord(mode: .pomodoro, startedAt: now.addingTimeInterval(-1600), endedAt: now.addingTimeInterval(-100), finished: true)
+        #expect(StudySuggestions.general(sessions: [justDone], now: now).mode == .breakMode)
+    }
+
+    @Test func generalIgnoresOldUnfinishedAndBreakSessions() {
+        let now = date(hour: 9)
+        let old = SessionRecord(mode: .pomodoro, startedAt: now.addingTimeInterval(-9000), endedAt: now.addingTimeInterval(-1800), finished: true)
+        let unfinished = SessionRecord(mode: .pomodoro, startedAt: now.addingTimeInterval(-600), endedAt: now.addingTimeInterval(-100), finished: false)
+        let aBreak = SessionRecord(mode: .breakMode, startedAt: now.addingTimeInterval(-400), endedAt: now.addingTimeInterval(-100), finished: true)
+        #expect(StudySuggestions.general(sessions: [old, unfinished, aBreak], now: now).mode == .deepWork)
+    }
+
+    @Test func historySaysNothingBelowFiveSessions() {
+        let few = sessions(.pomodoro, finished: 4)
+        #expect(StudySuggestions.personal(sessions: few, now: date(hour: 9)) == nil)
+    }
+
+    @Test func historyPicksTheModeFinishedMostReliably() {
+        let history = sessions(.pomodoro, finished: 1, unfinished: 3) + sessions(.deepWork, finished: 3)
+        let suggestion = StudySuggestions.personal(sessions: history, now: date(hour: 9))
+        #expect(suggestion?.mode == .deepWork)
+        #expect(suggestion?.reason == "You finished 3 of 3 Deep Work sessions in the morning.")
+    }
+
+    @Test func historyBreaksATieByFinishedCount() {
+        let history = sessions(.pomodoro, finished: 2) + sessions(.deepWork, finished: 4)
+        #expect(StudySuggestions.personal(sessions: history, now: date(hour: 9))?.mode == .deepWork)
+    }
+
+    @Test func historyIgnoresAModeTriedOnlyOnce() {
+        let history = sessions(.pomodoro, finished: 3, unfinished: 2) + sessions(.deepWork, finished: 1)
+        #expect(StudySuggestions.personal(sessions: history, now: date(hour: 9))?.mode == .pomodoro)
+    }
+
+    @Test func historyOnlyCountsThisPartOfTheDay() {
+        let evening = sessions(.deepWork, finished: 6, hour: 20)
+        #expect(StudySuggestions.personal(sessions: evening, now: date(hour: 9)) == nil)
+        #expect(StudySuggestions.personal(sessions: evening, now: date(hour: 20))?.mode == .deepWork)
+    }
+
+    @Test func historyDoesNotCountBreaks() {
+        let breaks = sessions(.breakMode, finished: 10)
+        #expect(StudySuggestions.personal(sessions: breaks, now: date(hour: 9)) == nil)
+    }
+
+    @Test func historySaysNothingIfNothingWasFinished() {
+        let history = sessions(.pomodoro, finished: 0, unfinished: 6)
+        #expect(StudySuggestions.personal(sessions: history, now: date(hour: 9)) == nil)
+    }
+
+    @Test func viewModelStoresSessionsAndLearnsFromThem() {
+        let context = PersistenceController(inMemory: true).container.viewContext
+        let now = date(hour: 9)
+        let model = SuggestionsViewModel(context: context, now: { now })
+        #expect(model.personal == nil)
+        #expect(model.personalProgress == "0 of 5 focus sessions in the morning so far.")
+
+        let start = date(hour: 9, day: 10)
+        for _ in 0..<5 {
+            TimerSession.record(mode: .deepWork, startedAt: start, endedAt: start.addingTimeInterval(5400), finished: true, in: context)
+        }
+        #expect(model.sessions.count == 5)
+        #expect(model.personal?.mode == .deepWork)
+    }
+
+    @Test func viewModelExplainsHistoryWithNoFinishedSessions() {
+        let context = PersistenceController(inMemory: true).container.viewContext
+        let now = date(hour: 9)
+        let model = SuggestionsViewModel(context: context, now: { now })
+        let start = date(hour: 9, day: 10)
+        for _ in 0..<5 {
+            TimerSession.record(mode: .pomodoro, startedAt: start, endedAt: start.addingTimeInterval(300), finished: false, in: context)
+        }
+        #expect(model.personal == nil)
+        #expect(model.personalProgress == "Not enough finished sessions in the morning yet.")
     }
 }
 

@@ -10,7 +10,7 @@ struct ContentView: View {
                     Label("Planner", systemImage: "calendar")
                 }
 
-            TimerDashboardView()
+            TimerDashboardView(context: viewContext)
                 .tabItem {
                     Label("Timer", systemImage: "timer")
                 }

@@ -19,6 +19,22 @@ extension StudyTask {
     }
 }
 
+extension TimerSession {
+    static func record(mode: TimerMode, startedAt: Date, endedAt: Date, finished: Bool, in context: NSManagedObjectContext) {
+        // By name because +[TimerSession entity] is ambiguous when several containers have loaded the model.
+        let session = NSEntityDescription.insertNewObject(forEntityName: "TimerSession", into: context) as! TimerSession
+        session.mode = mode.rawValue
+        session.startedAt = startedAt
+        session.endedAt = endedAt
+        session.finished = finished
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+        }
+    }
+}
+
 struct PersistenceController {
     // UI tests pass this flag so they start from an empty store each launch.
     static let shared = PersistenceController(inMemory: CommandLine.arguments.contains("--in-memory-store"))

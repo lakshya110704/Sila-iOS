@@ -9,6 +9,9 @@ Sila is an iOS study planner with focus timers and a productivity summary. It st
   - Pomodoro: 25 minutes
   - Deep Work: 90 minutes
   - Break: 5 minutes
+- **Suggestions:** two suggestions sit side by side on the Timer screen, and either can set the timer's mode.
+  - General: fixed rules of thumb based on the time of day and whether you just finished a focus session. They are not personalised or based on research.
+  - Your History: the focus mode you finish most reliably at this time of day, from the timer sessions saved on your device. It needs 5 focus sessions in a part of the day before it suggests anything.
 - **Productivity summary:** today's total study minutes, a list of completed tasks and a 7-day bar chart. Minutes count on the day a task was completed. Tasks completed before the app stored that date count on their scheduled date.
 
 ## Built with
@@ -19,7 +22,7 @@ Sila is an iOS study planner with focus timers and a productivity summary. It st
 
 ## Architecture
 
-The timer and summary screens use MVVM: `TimerViewModel` and `ProductivitySummaryViewModel` hold their logic. The planner and add task screens read and write Core Data directly from the view.
+The timer and summary screens use MVVM: `TimerViewModel`, `SuggestionsViewModel` and `ProductivitySummaryViewModel` hold their logic. The planner and add task screens read and write Core Data directly from the view.
 
 ## Setup
 
@@ -34,13 +37,13 @@ Requires Xcode and iOS 18.0 or later.
 
 ## Tests
 
-`SilaTests` covers the timer, the summary calculations, add task validation and migrating a store from the first Core Data model version. Last run: 49 of 49 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
+`SilaTests` covers the timer, the suggestions, the planner week, the summary calculations, add task validation and migrating stores from earlier Core Data model versions. Last run: 71 of 71 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
 
-`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, completing and deleting a task, and moving between weeks, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 11 of 11 test methods passed on the same simulator. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
+`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, completing and deleting a task, moving between weeks, and using a suggestion, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 12 of 12 test methods passed on the same simulator. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
 
 ## Roadmap
 
-- CoreML timer mode suggestions: not built
+- A CoreML model for suggestions: not built
 
 ## License
 

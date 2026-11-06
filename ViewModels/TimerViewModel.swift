@@ -95,6 +95,9 @@ final class TimerViewModel: ObservableObject {
     private let clock: TimerClock
     private let defaults: UserDefaults
     private let notifier: TimerNotifier
+    private let onSessionEnd: (_ mode: TimerMode, _ startedAt: Date, _ endedAt: Date, _ finished: Bool) -> Void
+    private var sessionStart: Date?
+    private var sessionMode: TimerMode?
     private var stopTicks: (() -> Void)?
     private var endDate: Date?
     private var endUptime: TimeInterval?
@@ -105,17 +108,27 @@ final class TimerViewModel: ObservableObject {
         static let endDate = "timer.endDate"
         static let endUptime = "timer.endUptime"
         static let bootID = "timer.bootID"
+        static let sessionStart = "timer.sessionStart"
+        static let sessionMode = "timer.sessionMode"
     }
 
-    init(clock: TimerClock = .system, defaults: UserDefaults = .standard, notifier: TimerNotifier = .system) {
+    init(
+        clock: TimerClock = .system,
+        defaults: UserDefaults = .standard,
+        notifier: TimerNotifier = .system,
+        onSessionEnd: @escaping (TimerMode, Date, Date, Bool) -> Void = { _, _, _, _ in }
+    ) {
         self.clock = clock
         self.defaults = defaults
         self.notifier = notifier
+        self.onSessionEnd = onSessionEnd
 
         guard let saved = defaults.string(forKey: Key.mode).flatMap(TimerMode.init(rawValue:)) else { return }
         // Set through the wrapper because mode's didSet would reset the saved state.
         _mode = Published(initialValue: saved)
         timeRemaining = defaults.integer(forKey: Key.timeRemaining)
+        sessionStart = defaults.object(forKey: Key.sessionStart) as? Date
+        sessionMode = defaults.string(forKey: Key.sessionMode).flatMap(TimerMode.init(rawValue:))
         if let savedEnd = defaults.object(forKey: Key.endDate) as? Date {
             endDate = savedEnd
             // Uptime only means something within one boot, so after a reboot go by the device clock.
@@ -138,6 +151,10 @@ final class TimerViewModel: ObservableObject {
     func start() {
         if timeRemaining == 0 { timeRemaining = mode.seconds }
         isRunning = true
+        if sessionStart == nil {
+            sessionStart = clock.now()
+            sessionMode = mode
+        }
         endDate = clock.now().addingTimeInterval(TimeInterval(timeRemaining))
         endUptime = clock.uptime() + TimeInterval(timeRemaining)
         scheduleTicks()
@@ -153,6 +170,13 @@ final class TimerViewModel: ObservableObject {
     }
 
     func reset() {
+        refresh()
+        // Under a minute is more likely a mistaken tap than a session given up on.
+        if let sessionStart, clock.now().timeIntervalSince(sessionStart) >= 60 {
+            endSession(finished: false, endedAt: clock.now())
+        }
+        sessionStart = nil
+        sessionMode = nil
         stop()
         notifier.cancelFinish()
         timeRemaining = mode.seconds
@@ -165,9 +189,17 @@ final class TimerViewModel: ObservableObject {
         guard isRunning, let endUptime else { return }
         timeRemaining = max(0, Int((endUptime - clock.uptime()).rounded(.up)))
         if timeRemaining == 0 {
+            endSession(finished: true, endedAt: self.endDate ?? clock.now())
+            sessionStart = nil
+            sessionMode = nil
             stop()
             save()
         }
+    }
+
+    private func endSession(finished: Bool, endedAt: Date) {
+        guard let sessionStart, let sessionMode else { return }
+        onSessionEnd(sessionMode, sessionStart, endedAt, finished)
     }
 
     private func scheduleTicks() {
@@ -190,5 +222,7 @@ final class TimerViewModel: ObservableObject {
         defaults.set(endDate, forKey: Key.endDate)
         defaults.set(endUptime, forKey: Key.endUptime)
         defaults.set(clock.bootID(), forKey: Key.bootID)
+        defaults.set(sessionStart, forKey: Key.sessionStart)
+        defaults.set(sessionMode?.rawValue, forKey: Key.sessionMode)
     }
 }

@@ -13,18 +13,26 @@ import CoreData
 final class FakeClock {
     private var handler: (() -> Void)?
     private var now = Date(timeIntervalSinceReferenceDate: 0)
+    private var uptime: TimeInterval = 1000
+    private var bootID = "first boot"
 
     var timerClock: TimerClock {
-        TimerClock(now: { self.now }) { handler in
-            self.handler = handler
-            return { self.handler = nil }
-        }
+        TimerClock(
+            now: { self.now },
+            uptime: { self.uptime },
+            bootID: { self.bootID },
+            scheduleTicks: { handler in
+                self.handler = handler
+                return { self.handler = nil }
+            }
+        )
     }
 
     /// Time passes with the app in the foreground, so ticks fire.
     func advance(seconds: Int) {
         for _ in 0..<seconds {
             now += 1
+            uptime += 1
             handler?()
         }
     }
@@ -32,6 +40,19 @@ final class FakeClock {
     /// Time passes with the app suspended, so no ticks fire.
     func passWithoutTicks(seconds: TimeInterval) {
         now += seconds
+        uptime += seconds
+    }
+
+    /// The user changes the time in Settings. No time actually passes.
+    func changeDeviceClock(by seconds: TimeInterval) {
+        now += seconds
+    }
+
+    /// The device restarts after the given time. Uptime starts again.
+    func reboot(after seconds: TimeInterval) {
+        now += seconds
+        uptime = 5
+        bootID = "second boot"
     }
 }
 
@@ -247,6 +268,69 @@ struct TimerViewModelTests {
         fake.passWithoutTicks(seconds: 0.5)
         timer.refresh()
         #expect(timer.timeRemaining == 25 * 60)
+    }
+
+    @Test func changingTheDeviceClockDoesNotShiftARunningTimer() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 10)
+
+        fake.changeDeviceClock(by: 3600)
+        timer.refresh()
+        #expect(timer.isRunning)
+        #expect(timer.timeRemaining == 25 * 60 - 10)
+
+        fake.changeDeviceClock(by: -7200)
+        fake.advance(seconds: 5)
+        #expect(timer.timeRemaining == 25 * 60 - 15)
+    }
+
+    @Test func changingTheDeviceClockDoesNotShiftATimerAfterTermination() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 10)
+        fake.changeDeviceClock(by: 3600)
+
+        let restored = makeTimer()
+        #expect(restored.isRunning)
+        #expect(restored.timeRemaining == 25 * 60 - 10)
+    }
+
+    @Test func aRebootFallsBackToTheDeviceClock() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 10)
+        fake.reboot(after: 100)
+
+        let restored = makeTimer()
+        #expect(restored.isRunning)
+        #expect(restored.timeRemaining == 25 * 60 - 110)
+
+        fake.advance(seconds: 5)
+        #expect(restored.timeRemaining == 25 * 60 - 115)
+    }
+
+    @Test func aTimerThatEndsDuringARebootIsFinished() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        timer.start()
+        fake.reboot(after: 3600)
+
+        let restored = makeTimer()
+        #expect(!restored.isRunning)
+        #expect(restored.timeRemaining == 0)
+    }
+
+    @Test func aSavedTimerFromBeforeUptimeWasStoredStillRestores() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 10)
+        defaults.removeObject(forKey: "timer.endUptime")
+        defaults.removeObject(forKey: "timer.bootID")
+
+        let restored = makeTimer()
+        #expect(restored.isRunning)
+        #expect(restored.timeRemaining == 25 * 60 - 10)
     }
 
     @Test func runningTimerSurvivesTermination() {

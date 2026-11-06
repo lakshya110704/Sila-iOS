@@ -33,13 +33,15 @@ struct TimerDashboardView: View {
                     Button(viewModel.isRunning ? "Pause" : "Start") {
                         viewModel.isRunning ? viewModel.pause() : viewModel.start()
                     }
-                    .font(.title2)
+                    .buttonStyle(.borderedProminent)
 
                     Button("Reset") {
                         viewModel.reset()
                     }
-                    .font(.title2)
+                    .buttonStyle(.bordered)
                 }
+                .font(.title2)
+                .controlSize(.large)
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { viewModel.refresh() }

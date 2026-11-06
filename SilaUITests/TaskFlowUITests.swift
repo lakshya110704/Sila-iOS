@@ -32,6 +32,7 @@ final class TaskFlowUITests: XCTestCase {
 
         let row = app.cells.containing(.staticText, identifier: title).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertGreaterThanOrEqual(row.buttons["Mark complete"].frame.height, 44)
         row.buttons["Mark complete"].tap(until: row.buttons["Mark incomplete"])
 
         app.tabBars.buttons["Summary"].tap(until: app.staticTexts[title])

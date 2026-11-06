@@ -14,6 +14,7 @@
 		6A9492F82E45498E00D5EA62 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 6A9492F72E45498E00D5EA62 /* README.md */; };
 		6A9492FB2E45498E00D5EA62 /* TimerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9492F92E45498E00D5EA62 /* TimerViewModel.swift */; };
 		6A9492FC2E45498E00D5EA62 /* ProductivitySummaryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9492FA2E45498E00D5EA62 /* ProductivitySummaryViewModel.swift */; };
+		6A9492FE2E45498E00D5EA62 /* PlannerWeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9492FD2E45498E00D5EA62 /* PlannerWeek.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +47,7 @@
 		6A9492F72E45498E00D5EA62 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		6A9492F92E45498E00D5EA62 /* TimerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerViewModel.swift; sourceTree = "<group>"; };
 		6A9492FA2E45498E00D5EA62 /* ProductivitySummaryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivitySummaryViewModel.swift; sourceTree = "<group>"; };
+		6A9492FD2E45498E00D5EA62 /* PlannerWeek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerWeek.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -172,6 +174,7 @@
 			children = (
 				6A9492F92E45498E00D5EA62 /* TimerViewModel.swift */,
 				6A9492FA2E45498E00D5EA62 /* ProductivitySummaryViewModel.swift */,
+				6A9492FD2E45498E00D5EA62 /* PlannerWeek.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -327,6 +330,7 @@
 				6A9492E42E4503F100D5EA62 /* ProductivitySummaryView.swift in Sources */,
 				6A9492FB2E45498E00D5EA62 /* TimerViewModel.swift in Sources */,
 				6A9492FC2E45498E00D5EA62 /* ProductivitySummaryViewModel.swift in Sources */,
+				6A9492FE2E45498E00D5EA62 /* PlannerWeek.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -15,9 +15,16 @@ struct AddTaskView: View {
 
     @State private var title = ""
     @State private var subject = ""
-    @State private var date = Date()
+    @State private var date: Date
     @State private var duration = 30
     @State private var saveFailed = false
+
+    private let onSave: (Date) -> Void
+
+    init(initialDate: Date = Date(), onSave: @escaping (Date) -> Void = { _ in }) {
+        _date = State(initialValue: initialDate)
+        self.onSave = onSave
+    }
 
     private var trimmedTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -66,6 +73,7 @@ struct AddTaskView: View {
 
         do {
             try viewContext.save()
+            onSave(date)
             dismiss()
         } catch {
             viewContext.rollback()

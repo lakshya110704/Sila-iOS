@@ -6,14 +6,18 @@
 import XCTest
 
 final class TaskFlowUITests: XCTestCase {
-    func testCompletedTaskAppearsInSummary() {
+    private let app = XCUIApplication()
+
+    override func setUpWithError() throws {
         continueAfterFailure = false
-        // The template launch tests can leave the simulator in landscape, which hides this row.
+        // The template launch tests can leave the simulator in landscape, which hides rows.
         XCUIDevice.shared.orientation = .portrait
-        let app = XCUIApplication()
         app.launchArguments = ["--in-memory-store"]
         app.launch()
+    }
 
+    /// Adds a task dated now and returns its title.
+    private func addTask() -> String {
         let title = "Task \(UUID().uuidString.prefix(8))"
         let add = app.buttons["Add Task"]
         XCTAssertTrue(add.waitForExistence(timeout: 30))
@@ -29,12 +33,49 @@ final class TaskFlowUITests: XCTestCase {
         titleField.typeText(title)
         XCTAssertTrue(save.isEnabled)
         save.tap()
+        return title
+    }
 
-        let row = app.cells.containing(.staticText, identifier: title).firstMatch
+    private func row(_ title: String) -> XCUIElement {
+        app.cells.containing(.staticText, identifier: title).firstMatch
+    }
+
+    func testCompletedTaskAppearsInSummary() {
+        let title = addTask()
+        let row = row(title)
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertGreaterThanOrEqual(row.buttons["Mark complete"].frame.height, 44)
         row.buttons["Mark complete"].tap(until: row.buttons["Mark incomplete"])
 
         app.tabBars.buttons["Summary"].tap(until: app.staticTexts[title])
+    }
+
+    func testWeekSwitcherShowsOnlyThatWeeksTasks() {
+        let title = addTask()
+        XCTAssertTrue(row(title).waitForExistence(timeout: 10))
+        let thisWeek = app.staticTexts["weekLabel"].label
+
+        app.buttons["Next week"].tap(until: app.buttons["This Week"])
+        XCTAssertNotEqual(app.staticTexts["weekLabel"].label, thisWeek)
+        XCTAssertFalse(row(title).exists)
+
+        app.buttons["This Week"].tap(until: row(title))
+        XCTAssertEqual(app.staticTexts["weekLabel"].label, thisWeek)
+
+        app.buttons["Previous week"].tap(until: app.buttons["This Week"])
+        XCTAssertFalse(row(title).exists)
+    }
+
+    func testDeletingATaskRemovesIt() {
+        let keep = addTask()
+        XCTAssertTrue(row(keep).waitForExistence(timeout: 10))
+        let remove = addTask()
+        XCTAssertTrue(row(remove).waitForExistence(timeout: 10))
+
+        row(remove).swipeLeft()
+        app.buttons["Delete"].tap()
+        let gone = NSPredicate(format: "exists == false")
+        wait(for: [expectation(for: gone, evaluatedWith: row(remove))], timeout: 10)
+        XCTAssertTrue(row(keep).exists)
     }
 }

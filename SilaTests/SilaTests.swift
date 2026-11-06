@@ -580,3 +580,57 @@ struct StoreMigrationTests {
         #expect(task.completedAt == scheduled)
     }
 }
+
+@MainActor
+struct PlannerWeekTests {
+    private let context = PersistenceController(inMemory: true).container.viewContext
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 2 // Monday
+        return calendar
+    }()
+
+    private func date(_ day: Int, hour: Int = 12) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: 3, day: day, hour: hour))!
+    }
+
+    private func task(on date: Date?) -> StudyTask {
+        let task = NSEntityDescription.insertNewObject(forEntityName: "StudyTask", into: context) as! StudyTask
+        task.date = date
+        return task
+    }
+
+    // 16 March 2026 is a Monday.
+    @Test func weekStartsOnTheCalendarsFirstDay() {
+        let monday = calendar.startOfDay(for: date(16))
+        #expect(PlannerWeek.start(of: date(16), calendar: calendar) == monday)
+        #expect(PlannerWeek.start(of: date(18), calendar: calendar) == monday)
+        #expect(PlannerWeek.start(of: date(22, hour: 23), calendar: calendar) == monday)
+        #expect(PlannerWeek.start(of: date(23), calendar: calendar) != monday)
+    }
+
+    @Test func aWeekHasSevenDaysInOrder() {
+        let days = PlannerWeek.days(from: calendar.startOfDay(for: date(16)), tasks: [], calendar: calendar)
+        #expect(days.map(\.date) == (16...22).map { calendar.startOfDay(for: date($0)) })
+    }
+
+    @Test func tasksLandOnTheirOwnDayInTheOrderGiven() {
+        let early = task(on: date(18, hour: 8))
+        let late = task(on: date(18, hour: 20))
+        let sunday = task(on: date(22, hour: 23))
+        let days = PlannerWeek.days(from: calendar.startOfDay(for: date(16)), tasks: [early, late, sunday], calendar: calendar)
+
+        #expect(days[2].tasks == [early, late])
+        #expect(days[6].tasks == [sunday])
+        #expect(days.map(\.tasks.count) == [0, 0, 2, 0, 0, 0, 1])
+    }
+
+    @Test func tasksFromOtherWeeksAndWithoutADateAreLeftOut() {
+        let lastSunday = task(on: date(15, hour: 23))
+        let nextMonday = task(on: date(23, hour: 0))
+        let undated = task(on: nil)
+        let days = PlannerWeek.days(from: calendar.startOfDay(for: date(16)), tasks: [lastSunday, nextMonday, undated], calendar: calendar)
+
+        #expect(days.allSatisfy { $0.tasks.isEmpty })
+    }
+}

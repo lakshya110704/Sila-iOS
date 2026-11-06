@@ -23,13 +23,28 @@ enum TimerMode: String, CaseIterable {
 /// Drives the countdown. Injected so tests can run it without real time passing.
 struct TimerClock {
     var now: () -> Date
+    /// Seconds since boot. Keeps counting while the device sleeps, and changing the device clock doesn't move it.
+    var uptime: () -> TimeInterval
+    /// Different after every reboot, which is when uptime starts again from zero.
+    var bootID: () -> String
     /// Calls the handler once a second and returns a closure that stops it.
     var scheduleTicks: (@escaping () -> Void) -> () -> Void
 
-    static let system = TimerClock(now: Date.init) { handler in
-        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in handler() }
-        return { timer.invalidate() }
-    }
+    static let system = TimerClock(
+        now: Date.init,
+        uptime: { TimeInterval(clock_gettime_nsec_np(CLOCK_MONOTONIC)) / 1_000_000_000 },
+        bootID: {
+            var size = 0
+            sysctlbyname("kern.bootsessionuuid", nil, &size, nil, 0)
+            var buffer = [CChar](repeating: 0, count: size)
+            sysctlbyname("kern.bootsessionuuid", &buffer, &size, nil, 0)
+            return String(cString: buffer)
+        },
+        scheduleTicks: { handler in
+            let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in handler() }
+            return { timer.invalidate() }
+        }
+    )
 }
 
 /// Tells the user when a timer finishes. Injected so tests don't touch the real notification center.
@@ -82,11 +97,14 @@ final class TimerViewModel: ObservableObject {
     private let notifier: TimerNotifier
     private var stopTicks: (() -> Void)?
     private var endDate: Date?
+    private var endUptime: TimeInterval?
 
     private enum Key {
         static let mode = "timer.mode"
         static let timeRemaining = "timer.timeRemaining"
         static let endDate = "timer.endDate"
+        static let endUptime = "timer.endUptime"
+        static let bootID = "timer.bootID"
     }
 
     init(clock: TimerClock = .system, defaults: UserDefaults = .standard, notifier: TimerNotifier = .system) {
@@ -100,6 +118,13 @@ final class TimerViewModel: ObservableObject {
         timeRemaining = defaults.integer(forKey: Key.timeRemaining)
         if let savedEnd = defaults.object(forKey: Key.endDate) as? Date {
             endDate = savedEnd
+            // Uptime only means something within one boot, so after a reboot go by the device clock.
+            if defaults.string(forKey: Key.bootID) == clock.bootID(),
+               let savedEndUptime = defaults.object(forKey: Key.endUptime) as? TimeInterval {
+                endUptime = savedEndUptime
+            } else {
+                endUptime = clock.uptime() + savedEnd.timeIntervalSince(clock.now())
+            }
             isRunning = true
             scheduleTicks()
             refresh()
@@ -114,6 +139,7 @@ final class TimerViewModel: ObservableObject {
         if timeRemaining == 0 { timeRemaining = mode.seconds }
         isRunning = true
         endDate = clock.now().addingTimeInterval(TimeInterval(timeRemaining))
+        endUptime = clock.uptime() + TimeInterval(timeRemaining)
         scheduleTicks()
         notifier.scheduleFinish(mode, timeRemaining)
         save()
@@ -133,11 +159,11 @@ final class TimerViewModel: ObservableObject {
         save()
     }
 
-    /// Recomputes from the end date, because ticks don't fire while the app is suspended.
-    /// shortcut: changing the device clock shifts the countdown, use a monotonic clock if that matters.
+    /// Recomputes from the end time, because ticks don't fire while the app is suspended.
+    /// shortcut: a device clock change made around a reboot still shifts a running timer, store elapsed time if that matters.
     func refresh() {
-        guard isRunning, let endDate else { return }
-        timeRemaining = max(0, Int(endDate.timeIntervalSince(clock.now()).rounded(.up)))
+        guard isRunning, let endUptime else { return }
+        timeRemaining = max(0, Int((endUptime - clock.uptime()).rounded(.up)))
         if timeRemaining == 0 {
             stop()
             save()
@@ -152,6 +178,7 @@ final class TimerViewModel: ObservableObject {
     private func stop() {
         isRunning = false
         endDate = nil
+        endUptime = nil
         stopTicks?()
         stopTicks = nil
     }
@@ -161,5 +188,7 @@ final class TimerViewModel: ObservableObject {
         defaults.set(mode.rawValue, forKey: Key.mode)
         defaults.set(timeRemaining, forKey: Key.timeRemaining)
         defaults.set(endDate, forKey: Key.endDate)
+        defaults.set(endUptime, forKey: Key.endUptime)
+        defaults.set(clock.bootID(), forKey: Key.bootID)
     }
 }

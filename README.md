@@ -39,7 +39,7 @@ Requires Xcode and iOS 18.0 or later.
 
 `SilaTests` covers the timer, the suggestions, the planner week, the summary calculations, add task validation and migrating stores from earlier Core Data model versions. Last run: 81 of 81 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
 
-`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, editing, completing and deleting a task, moving between weeks, using a suggestion, and focusing on a task until its time shows in the planner and Summary, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 17 of 17 test methods passed on the same simulator, run one at a time. Earlier runs while the Mac was overloaded or sleeping did have failures, mostly timeouts. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
+`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, editing, completing and deleting a task, moving between weeks, using a suggestion, and focusing on a task until its time shows in the planner and Summary, and checks tap target sizes. It also runs Xcode's accessibility audit on each screen, skipping a few findings checked by hand (listed in the test). It also contains the Xcode template launch tests. Last run: 18 of 18 test methods passed on the same simulator, run one at a time. Earlier runs while the Mac was overloaded or sleeping did have failures, mostly timeouts. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
 
 ## Not yet tested
 
@@ -48,6 +48,7 @@ Sila has only been run on a simulator. For a physical device it has only been co
 - A timer across a real reboot, or a real change of the device time. Unit tests cover both with a fake clock.
 - A finish notification firing on a device.
 - Whether taps are ever ignored on a device.
+- Using the app with VoiceOver. Only the automated audit has run, and large text was checked by eye on a simulator.
 - The Your History card making a real suggestion on screen. Unit tests cover the logic, and the UI test only checks that the card appears.
 
 ## Known gaps

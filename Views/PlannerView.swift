@@ -22,6 +22,8 @@ struct PlannerView: View {
     @State private var showingAddTask = false
     @State private var editingTask: StudyTask?
     @State private var weekStart = PlannerWeek.start(of: Date())
+    @State private var saveFailed = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var isThisWeek: Bool {
         weekStart == PlannerWeek.start(of: Date())
@@ -88,6 +90,11 @@ struct PlannerView: View {
                 }
                 .environment(\.managedObjectContext, viewContext)
             }
+            .alert("Couldn't save your change", isPresented: $saveFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("The task is back the way it was. Please try again.")
+            }
         }
         .background(Color.paper)
     }
@@ -130,7 +137,8 @@ struct PlannerView: View {
     }
 
     private func row(for task: StudyTask) -> some View {
-        HStack {
+        let layout = typeSize.stack(alignment: .leading)
+        return layout {
             Button(action: {
                 task.toggleCompleted()
                 save()
@@ -148,17 +156,22 @@ struct PlannerView: View {
                 Text(task.title ?? "Untitled")
                     .font(.headline)
                     .strikethrough(task.completed, color: .gray)
-                Text(task.subject.flatMap { $0.isEmpty ? nil : $0 } ?? "No Subject")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                if let subject = task.subject, !subject.isEmpty {
+                    Text(subject)
+                        .font(.subheadline)
+                        .foregroundColor(.muted)
+                }
+                // The day is already in the section heading.
                 if let date = task.date {
-                    Text(date.formatted(date: .abbreviated, time: .shortened))
+                    Text(date.formatted(date: .omitted, time: .shortened))
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.muted)
                 }
             }
 
-            Spacer()
+            if !typeSize.isAccessibilitySize {
+                Spacer()
+            }
             Text(task.durationLabel)
                 .font(.serif(.footnote))
                 .padding(.horizontal, 10)
@@ -202,6 +215,7 @@ struct PlannerView: View {
             try viewContext.save()
         } catch {
             viewContext.rollback()
+            saveFailed = true
         }
     }
 }

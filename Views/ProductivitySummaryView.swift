@@ -12,6 +12,8 @@ import Charts
 
 struct ProductivitySummaryView: View {
     @StateObject private var viewModel: ProductivitySummaryViewModel
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var completedRowLayout: AnyLayout { typeSize.stack(alignment: .leading) }
 
     init(context: NSManagedObjectContext) {
         _viewModel = StateObject(wrappedValue: ProductivitySummaryViewModel(context: context))
@@ -32,24 +34,31 @@ struct ProductivitySummaryView: View {
                 }
 
                 Section {
-                    Chart {
-                        ForEach(viewModel.past7DaysData) { data in
-                            BarMark(
-                                x: .value("Day", data.date, unit: .day),
-                                y: .value("Minutes", data.totalMinutes)
-                            )
-                            .cornerRadius(5)
-                            .foregroundStyle(Color.accentColor)
+                    if viewModel.past7DaysData.allSatisfy({ $0.totalMinutes == 0 }) {
+                        Text("No focus time this week. Finish or reset a Pomodoro or Deep Work session to see it here.")
+                            .foregroundColor(.muted)
+                            .listRowBackground(Color.card)
+                    } else {
+                        Chart {
+                            ForEach(viewModel.past7DaysData) { data in
+                                BarMark(
+                                    x: .value("Day", data.date, unit: .day),
+                                    y: .value("Minutes", data.totalMinutes)
+                                )
+                                .cornerRadius(5)
+                                .foregroundStyle(Color.accentColor)
+                            }
                         }
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: .stride(by: .day)) { _ in
-                            AxisGridLine()
-                            AxisValueLabel(format: .dateTime.weekday(.narrow)) // M, T, W...
+                        .chartXAxis {
+                            // Only the 7 days, so there's no extra gridline at the end of today.
+                            AxisMarks(values: viewModel.past7DaysData.map(\.date)) { _ in
+                                AxisGridLine()
+                                AxisValueLabel(format: .dateTime.weekday(.narrow)) // M, T, W...
+                            }
                         }
+                        .frame(height: 200)
+                        .listRowBackground(Color.card)
                     }
-                    .frame(height: 200)
-                    .listRowBackground(Color.card)
                 } header: {
                     SectionTitle(text: "Weekly Focus Time")
                 }
@@ -57,21 +66,23 @@ struct ProductivitySummaryView: View {
                 Section {
                     if viewModel.completedTasks.isEmpty {
                         Text("Nothing completed yet.")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.muted)
                             .listRowBackground(Color.card)
                     }
                     ForEach(viewModel.completedTasks) { task in
-                        HStack {
+                        completedRowLayout {
                             VStack(alignment: .leading) {
                                 Text(task.title ?? "Untitled")
                                     .font(.headline)
                                 Text(task.subject ?? "")
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.muted)
                             }
-                            Spacer()
+                            if !typeSize.isAccessibilitySize {
+                                Spacer()
+                            }
                             Text(task.durationLabel)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.muted)
                         }
                         .listRowBackground(Color.card)
                     }

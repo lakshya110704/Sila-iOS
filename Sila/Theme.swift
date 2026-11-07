@@ -11,6 +11,14 @@ extension Font {
     }
 }
 
+extension DynamicTypeSize {
+    /// Side by side normally, one above the other at accessibility text sizes, where side by side text breaks mid-word.
+    func stack(alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil) -> AnyLayout {
+        isAccessibilitySize ? AnyLayout(VStackLayout(alignment: alignment, spacing: spacing))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: spacing))
+    }
+}
+
 /// Each screen draws its own title in the layout, so nothing can sit on top of it.
 struct ScreenTitle: View {
     let text: String

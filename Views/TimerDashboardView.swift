@@ -13,6 +13,11 @@ struct TimerDashboardView: View {
     @ObservedObject var viewModel: TimerViewModel
     @StateObject private var suggestions: SuggestionsViewModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var buttonLayout: AnyLayout { typeSize.stack(spacing: 16) }
+    private var cardLayout: AnyLayout { typeSize.stack(spacing: 12) }
+    // Grows with the text size setting, and minimumScaleFactor keeps it inside the ring.
+    @ScaledMetric(relativeTo: .largeTitle) private var timeSize = 60.0
     @FetchRequest(sortDescriptors: []) private var tasks: FetchedResults<StudyTask>
 
     private var focusTask: StudyTask? {
@@ -71,7 +76,7 @@ struct TimerDashboardView: View {
                             .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                             .rotationEffect(.degrees(-90))
                         Text(viewModel.timeString)
-                            .font(.system(size: 60, weight: .semibold, design: .serif))
+                            .font(.system(size: timeSize, weight: .semibold, design: .serif))
                             .monospacedDigit()
                             .minimumScaleFactor(0.5)
                             .lineLimit(1)
@@ -81,7 +86,7 @@ struct TimerDashboardView: View {
                     .frame(width: 260, height: 260)
                     .padding(.vertical, 8)
 
-                    HStack(spacing: 16) {
+                    buttonLayout {
                         Button(viewModel.isRunning ? "Pause" : "Start") {
                             viewModel.isRunning ? viewModel.pause() : viewModel.start()
                         }
@@ -97,7 +102,7 @@ struct TimerDashboardView: View {
                     .buttonBorderShape(.capsule)
                     .controlSize(.large)
 
-                    HStack(alignment: .top, spacing: 12) {
+                    cardLayout {
                         suggestionCard(title: "General", id: "general", suggestion: suggestions.general, fallback: "")
                         suggestionCard(title: "Your History", id: "history", suggestion: suggestions.personal,
                                        fallback: suggestions.personalProgress)
@@ -116,20 +121,24 @@ struct TimerDashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.muted)
             if let suggestion {
                 Text(suggestion.mode.rawValue)
                     .font(.serif(.headline))
                     .accessibilityIdentifier("\(id)SuggestionMode")
                 Text(suggestion.reason)
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.muted)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Use \(suggestion.mode.rawValue)") {
+                Button {
                     viewModel.mode = suggestion.mode
+                } label: {
+                    // Inside the label, so the whole 44pt is tappable.
+                    Text("Use \(suggestion.mode.rawValue)")
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .font(.footnote)
-                .frame(minHeight: 44)
                 .disabled(viewModel.isRunning || viewModel.mode == suggestion.mode)
                 .accessibilityIdentifier("\(id)SuggestionUse")
             } else {
@@ -137,7 +146,7 @@ struct TimerDashboardView: View {
                     .font(.serif(.headline))
                 Text(fallback)
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("\(id)SuggestionProgress")
             }

@@ -170,6 +170,42 @@ final class TaskFlowUITests: XCTestCase {
         XCTAssertTrue(waitUntilGone(app.staticTexts["focusTaskTitle"]))
     }
 
+    /// Skips the audit findings that were checked by hand and judged not to be problems.
+    private func audit() throws {
+        try app.performAccessibilityAudit { issue in
+            switch issue.auditType {
+            case .hitRegion:
+                // Text inside a task row, where the whole row is the tap target.
+                return issue.element?.elementType == .staticText
+            case .dynamicType:
+                // "Partially": system bar buttons and list headers. Screens were checked at the largest text size.
+                return issue.compactDescription.contains("partially")
+            case .textClipped:
+                // The one-line task title field, and findings with no element to point to.
+                return issue.element == nil || issue.element?.elementType == .textField
+            default:
+                return false
+            }
+        }
+    }
+
+    func testScreensPassTheAccessibilityAudit() throws {
+        let title = addTask()
+        XCTAssertTrue(waitUntilGone(app.buttons["Save"]))
+        XCTAssertTrue(row(title).waitForExistence(timeout: 10))
+        try audit()
+
+        openEditor(for: title)
+        try audit()
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(waitUntilGone(app.buttons["Save"]))
+
+        app.tabBars.buttons["Timer"].tap(until: app.buttons["Reset"])
+        try audit()
+        app.tabBars.buttons["Summary"].tap(until: app.staticTexts["todayFocusTime"])
+        try audit()
+    }
+
     func testDeletingATaskRemovesIt() {
         let keep = addTask()
         XCTAssertTrue(row(keep).waitForExistence(timeout: 10))

@@ -19,6 +19,7 @@ struct PlannerView: View {
     private var tasks: FetchedResults<StudyTask>
 
     @State private var showingAddTask = false
+    @State private var editingTask: StudyTask?
     @State private var weekStart = PlannerWeek.start(of: Date())
 
     private var isThisWeek: Bool {
@@ -70,6 +71,12 @@ struct PlannerView: View {
             }
             .sheet(isPresented: $showingAddTask) {
                 AddTaskView(initialDate: isThisWeek ? Date() : weekStart) { savedDate in
+                    weekStart = PlannerWeek.start(of: savedDate)
+                }
+                .environment(\.managedObjectContext, viewContext)
+            }
+            .sheet(item: $editingTask) { task in
+                AddTaskView(task: task) { savedDate in
                     weekStart = PlannerWeek.start(of: savedDate)
                 }
                 .environment(\.managedObjectContext, viewContext)
@@ -145,6 +152,17 @@ struct PlannerView: View {
 
             Spacer()
             Text("\(task.duration) min")
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            editingTask = task
+        }
+        .accessibilityAction(named: "Edit") {
+            editingTask = task
         }
     }
 

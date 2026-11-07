@@ -4,7 +4,7 @@ Sila is an iOS study planner with focus timers and a productivity summary. It st
 
 ## Features
 
-- **Planner:** add, complete and delete study tasks (title, subject, date, duration). Tasks appear by day for one week at a time, with buttons to move between weeks. Save stays disabled until the title is not blank and the duration is above zero.
+- **Planner:** add, edit, complete and delete study tasks (title, subject, date, duration). Tap a task to edit it. Tasks appear by day for one week at a time, with buttons to move between weeks. Save stays disabled until the title is not blank and the duration is above zero.
 - **Focus timer:** three modes, with start, pause and reset. The timer keeps running when you switch tabs. It works out remaining time from the system uptime clock, so time spent in the background still counts and changing the device time doesn't shift it. After a reboot it goes by the device time instead. Its state is saved, so a running or paused timer carries on if iOS terminates the app. It sends a notification when it finishes, if you allow notifications.
   - Pomodoro: 25 minutes
   - Deep Work: 90 minutes
@@ -39,7 +39,7 @@ Requires Xcode and iOS 18.0 or later.
 
 `SilaTests` covers the timer, the suggestions, the planner week, the summary calculations, add task validation and migrating stores from earlier Core Data model versions. Last run: 71 of 71 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
 
-`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, completing and deleting a task, moving between weeks, and using a suggestion, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 12 of 12 test methods passed on the same simulator. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
+`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, editing, completing and deleting a task, moving between weeks, and using a suggestion, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 12 of 12 test methods passed on the same simulator. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
 
 ## Roadmap
 

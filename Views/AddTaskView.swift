@@ -13,21 +13,23 @@ struct AddTaskView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @State private var title = ""
-    @State private var subject = ""
+    @State private var title: String
+    @State private var subject: String
     @State private var date: Date
-    @State private var duration = 30
+    @State private var duration: Int
     @State private var saveFailed = false
 
+    private let task: StudyTask?
     private let onSave: (Date) -> Void
 
-    init(initialDate: Date = Date(), onSave: @escaping (Date) -> Void = { _ in }) {
-        _date = State(initialValue: initialDate)
+    /// Pass a task to edit it. Without one, the form adds a new task on initialDate.
+    init(task: StudyTask? = nil, initialDate: Date = Date(), onSave: @escaping (Date) -> Void = { _ in }) {
+        self.task = task
+        _title = State(initialValue: task?.title ?? "")
+        _subject = State(initialValue: task?.subject ?? "")
+        _date = State(initialValue: task?.date ?? initialDate)
+        _duration = State(initialValue: task.map { Int($0.duration) } ?? 30)
         self.onSave = onSave
-    }
-
-    private var trimmedTitle: String {
-        title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func isValid(title: String, duration: Int) -> Bool {
@@ -42,7 +44,7 @@ struct AddTaskView: View {
                 DatePicker("Date", selection: $date)
                 Stepper("\(duration) minutes", value: $duration, in: 5...240, step: 5)
             }
-            .navigationTitle("New Study Task")
+            .navigationTitle(task == nil ? "New Study Task" : "Edit Study Task")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -52,7 +54,7 @@ struct AddTaskView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        addTask()
+                        saveTask()
                     }
                     .disabled(!Self.isValid(title: title, duration: duration))
                 }
@@ -63,13 +65,8 @@ struct AddTaskView: View {
         }
     }
 
-    private func addTask() {
-        let newTask = StudyTask(context: viewContext)
-        newTask.title = trimmedTitle
-        newTask.subject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        newTask.date = date
-        newTask.duration = Int64(duration)
-        newTask.completed = false
+    private func saveTask() {
+        (task ?? StudyTask(context: viewContext)).update(title: title, subject: subject, date: date, duration: duration)
 
         do {
             try viewContext.save()

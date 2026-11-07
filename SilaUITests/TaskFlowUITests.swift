@@ -24,16 +24,37 @@ final class TaskFlowUITests: XCTestCase {
         let save = app.buttons["Save"]
         add.tap(until: save)
         XCTAssertFalse(save.isEnabled)
+        let titleField = focusedTitleField()
+        titleField.typeText(title)
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        return title
+    }
+
+    private func focusedTitleField() -> XCUIElement {
         let titleField = app.textFields["Title"]
         // A tap during the sheet's animation doesn't give the field keyboard focus.
         for _ in 0..<10 where titleField.value(forKey: "hasKeyboardFocus") as? Bool != true {
             titleField.tap()
             sleep(1)
         }
-        titleField.typeText(title)
-        XCTAssertTrue(save.isEnabled)
-        save.tap()
-        return title
+        return titleField
+    }
+
+    private func openEditor(for title: String) {
+        let row = row(title)
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.staticTexts[title].tap(until: app.navigationBars["Edit Study Task"])
+    }
+
+    private func waitUntilGone(_ element: XCUIElement) -> Bool {
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
+        return XCTWaiter.wait(for: [gone], timeout: 10) == .completed
+    }
+
+    private func clearText(of field: XCUIElement) {
+        let length = (field.value as? String)?.count ?? 0
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: length))
     }
 
     private func row(_ title: String) -> XCUIElement {
@@ -66,16 +87,68 @@ final class TaskFlowUITests: XCTestCase {
         XCTAssertFalse(row(title).exists)
     }
 
+    func testEditingATaskChangesIt() {
+        let title = addTask()
+        openEditor(for: title)
+        let field = focusedTitleField()
+        XCTAssertEqual(field.value as? String, title)
+
+        clearText(of: field)
+        field.typeText("Renamed task")
+        app.buttons["Save"].tap()
+
+        XCTAssertTrue(row("Renamed task").waitForExistence(timeout: 10))
+        XCTAssertFalse(row(title).exists)
+    }
+
+    func testCancellingAnEditLeavesTheTaskAlone() {
+        let title = addTask()
+        openEditor(for: title)
+        let field = focusedTitleField()
+        clearText(of: field)
+        field.typeText("Should not save")
+        app.buttons["Cancel"].tap()
+
+        XCTAssertTrue(row(title).waitForExistence(timeout: 10))
+        XCTAssertFalse(row("Should not save").exists)
+    }
+
+    func testAnEditCannotBlankTheTitle() {
+        let title = addTask()
+        openEditor(for: title)
+        let field = focusedTitleField()
+        clearText(of: field)
+        let disabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == false"), object: app.buttons["Save"])
+        let result = XCTWaiter.wait(for: [disabled], timeout: 5)
+        XCTAssertEqual(result, .completed)
+    }
+
+    func testEditingKeepsATaskCompleted() {
+        let title = addTask()
+        let row = row(title)
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.buttons["Mark complete"].tap(until: row.buttons["Mark incomplete"])
+
+        openEditor(for: title)
+        app.buttons["Save"].tap()
+        XCTAssertTrue(row.buttons["Mark incomplete"].waitForExistence(timeout: 10))
+    }
+
     func testDeletingATaskRemovesIt() {
         let keep = addTask()
         XCTAssertTrue(row(keep).waitForExistence(timeout: 10))
         let remove = addTask()
         XCTAssertTrue(row(remove).waitForExistence(timeout: 10))
 
+        // A swipe while the Add sheet is still closing doesn't reveal the button.
+        let delete = app.buttons["Delete"]
+        XCTAssertTrue(waitUntilGone(app.buttons["Save"]))
         row(remove).swipeLeft()
-        app.buttons["Delete"].tap()
-        let gone = NSPredicate(format: "exists == false")
-        wait(for: [expectation(for: gone, evaluatedWith: row(remove))], timeout: 10)
+        if !delete.waitForExistence(timeout: 5) {
+            row(remove).swipeLeft()
+        }
+        delete.tap()
+        XCTAssertTrue(waitUntilGone(row(remove)))
         XCTAssertTrue(row(keep).exists)
     }
 }

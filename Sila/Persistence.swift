@@ -8,6 +8,14 @@
 import CoreData
 
 extension StudyTask {
+    /// Sets the fields the form edits. Completion is left alone, so the Summary keeps counting it on the same day.
+    func update(title: String, subject: String, date: Date, duration: Int) {
+        self.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.subject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.date = date
+        self.duration = Int64(duration)
+    }
+
     func toggleCompleted(now: Date = Date()) {
         completed.toggle()
         completedAt = completed ? now : nil

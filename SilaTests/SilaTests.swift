@@ -538,6 +538,31 @@ struct ProductivitySummaryViewModelTests {
         return task
     }
 
+    @Test func updatingATaskTrimsAndSavesItsFields() throws {
+        let task = try addTask(on: date(daysAgo: 0), minutes: 30, completed: false)
+        task.update(title: "  Read chapter 3 ", subject: " Maths\n", date: date(daysAgo: 2), duration: 45)
+        try context.save()
+
+        #expect(task.title == "Read chapter 3")
+        #expect(task.subject == "Maths")
+        #expect(task.date == date(daysAgo: 2))
+        #expect(task.duration == 45)
+    }
+
+    @Test func editingACompletedTaskKeepsItsCompletionAndCountedDay() throws {
+        let completedAt = date(daysAgo: 0)
+        let task = try addTask(on: date(daysAgo: 1), minutes: 30, completedAt: completedAt)
+        let summary = makeSummary()
+        #expect(summary.todayTotalMinutes == 30)
+
+        task.update(title: "Renamed", subject: "", date: date(daysAgo: 4), duration: 45)
+        try context.save()
+
+        #expect(task.completed)
+        #expect(task.completedAt == completedAt)
+        #expect(summary.todayTotalMinutes == 45)
+    }
+
     @Test func minutesCountOnTheDayCompletedNotTheDayScheduled() throws {
         try addTask(on: date(daysAgo: 5), minutes: 30, completedAt: date(daysAgo: 0))
         try addTask(on: date(daysAgo: 0), minutes: 60, completedAt: date(daysAgo: 1))

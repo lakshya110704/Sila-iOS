@@ -19,7 +19,7 @@ final class TimerFlowUITests: XCTestCase {
     private func openTimer() {
         let tab = app.tabBars.buttons["Timer"]
         XCTAssertTrue(tab.waitForExistence(timeout: 30))
-        tab.tap()
+        tab.tap(until: app.buttons["Reset"])
     }
 
     /// The seconds left, read from the "mm:ss" label on screen.

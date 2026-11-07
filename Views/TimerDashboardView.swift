@@ -22,7 +22,8 @@ struct TimerDashboardView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            ScreenTitle(text: "Focus Timer")
             ScrollView {
                 VStack(spacing: 20) {
                     Picker("Mode", selection: $viewModel.mode) {
@@ -31,26 +32,40 @@ struct TimerDashboardView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .padding()
+                    .padding([.horizontal, .top])
 
-                    Text(viewModel.timeString)
-                        .font(.system(size: 64, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .accessibilityIdentifier("timeRemaining")
-                        .padding()
+                    ZStack {
+                        Circle()
+                            .stroke(Color.accentColor.opacity(0.18), lineWidth: 14)
+                        Circle()
+                            .trim(from: 0, to: CGFloat(viewModel.timeRemaining) / CGFloat(viewModel.mode.seconds))
+                            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                        Text(viewModel.timeString)
+                            .font(.system(size: 60, weight: .semibold, design: .serif))
+                            .monospacedDigit()
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(1)
+                            .padding(.horizontal, 28)
+                            .accessibilityIdentifier("timeRemaining")
+                    }
+                    .frame(width: 260, height: 260)
+                    .padding(.vertical, 8)
 
-                    HStack(spacing: 40) {
+                    HStack(spacing: 16) {
                         Button(viewModel.isRunning ? "Pause" : "Start") {
                             viewModel.isRunning ? viewModel.pause() : viewModel.start()
                         }
                         .buttonStyle(.borderedProminent)
+                        .foregroundStyle(Color.paper)
 
                         Button("Reset") {
                             viewModel.reset()
                         }
                         .buttonStyle(.bordered)
                     }
-                    .font(.title2)
+                    .font(.serif(.title3))
+                    .buttonBorderShape(.capsule)
                     .controlSize(.large)
 
                     HStack(alignment: .top, spacing: 12) {
@@ -64,8 +79,8 @@ struct TimerDashboardView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { viewModel.refresh() }
             }
-            .navigationTitle("Focus Timer")
         }
+        .background(Color.paper)
     }
 
     private func suggestionCard(title: String, id: String, suggestion: Suggestion?, fallback: String) -> some View {
@@ -75,7 +90,7 @@ struct TimerDashboardView: View {
                 .foregroundColor(.secondary)
             if let suggestion {
                 Text(suggestion.mode.rawValue)
-                    .font(.headline)
+                    .font(.serif(.headline))
                     .accessibilityIdentifier("\(id)SuggestionMode")
                 Text(suggestion.reason)
                     .font(.footnote)
@@ -90,7 +105,7 @@ struct TimerDashboardView: View {
                 .accessibilityIdentifier("\(id)SuggestionUse")
             } else {
                 Text("Still learning")
-                    .font(.headline)
+                    .font(.serif(.headline))
                 Text(fallback)
                     .font(.footnote)
                     .foregroundColor(.secondary)
@@ -100,6 +115,6 @@ struct TimerDashboardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.card, in: RoundedRectangle(cornerRadius: 14))
     }
 }

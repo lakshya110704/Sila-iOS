@@ -18,21 +18,27 @@ struct ProductivitySummaryView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            ScreenTitle(text: "Summary")
             List {
-                Section("📈 Today’s Total Study Time") {
+                Section {
                     Text("\(viewModel.todayTotalMinutes) minutes")
-                        .font(.largeTitle)
-                        .bold()
+                        .font(.serif(.largeTitle, weight: .bold))
+                        .foregroundStyle(Color.accentColor)
+                        .listRowBackground(Color.card)
+                } header: {
+                    SectionTitle(text: "Today’s Total Study Time")
                 }
 
-                Section("📅 Weekly Study Chart") {
+                Section {
                     Chart {
                         ForEach(viewModel.past7DaysData) { data in
                             BarMark(
                                 x: .value("Day", data.date, unit: .day),
                                 y: .value("Minutes", data.totalMinutes)
                             )
+                            .cornerRadius(5)
+                            .foregroundStyle(Color.accentColor)
                         }
                     }
                     .chartXAxis {
@@ -42,12 +48,16 @@ struct ProductivitySummaryView: View {
                         }
                     }
                     .frame(height: 200)
+                    .listRowBackground(Color.card)
+                } header: {
+                    SectionTitle(text: "Weekly Study Chart")
                 }
 
-                Section("✅ Completed Tasks") {
+                Section {
                     if viewModel.completedTasks.isEmpty {
                         Text("Nothing completed yet.")
                             .foregroundColor(.secondary)
+                            .listRowBackground(Color.card)
                     }
                     ForEach(viewModel.completedTasks) { task in
                         HStack {
@@ -62,10 +72,14 @@ struct ProductivitySummaryView: View {
                             Text("\(task.duration) min")
                                 .foregroundColor(.secondary)
                         }
+                        .listRowBackground(Color.card)
                     }
+                } header: {
+                    SectionTitle(text: "Completed Tasks")
                 }
             }
-            .navigationTitle("Summary")
+            .scrollContentBackground(.hidden)
         }
+        .background(Color.paper)
     }
 }

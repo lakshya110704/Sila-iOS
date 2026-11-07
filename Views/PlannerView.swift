@@ -37,36 +37,42 @@ struct PlannerView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                ScreenTitle(text: "Study Planner")
+                Button {
+                    showingAddTask.toggle()
+                } label: {
+                    Label("Add Task", systemImage: "plus")
+                        .labelStyle(.iconOnly)
+                        .font(.title2)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .padding(.top, 8)
+                .padding(.trailing, 8)
+            }
+            weekSwitcher
             List {
                 ForEach(daysWithTasks) { day in
-                    Section(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())) {
+                    Section {
                         ForEach(day.tasks) { task in
                             row(for: task)
+                                .listRowBackground(Color.card)
                         }
                         .onDelete { offsets in
                             deleteTask(from: day.tasks, at: offsets)
                         }
+                    } header: {
+                        SectionTitle(text: day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
                     }
                 }
             }
-            .safeAreaInset(edge: .top) {
-                weekSwitcher
-            }
+            .scrollContentBackground(.hidden)
             .overlay {
                 if daysWithTasks.isEmpty {
                     ContentUnavailableView("No Tasks This Week", systemImage: "calendar.badge.plus",
                                            description: Text("Tap + to plan a study session."))
-                }
-            }
-            .navigationTitle("Study Planner")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingAddTask.toggle()
-                    } label: {
-                        Label("Add Task", systemImage: "plus")
-                    }
                 }
             }
             .sheet(isPresented: $showingAddTask) {
@@ -82,6 +88,7 @@ struct PlannerView: View {
                 .environment(\.managedObjectContext, viewContext)
             }
         }
+        .background(Color.paper)
     }
 
     private var weekSwitcher: some View {
@@ -98,7 +105,7 @@ struct PlannerView: View {
             Spacer()
             VStack {
                 Text(weekLabel)
-                    .font(.headline)
+                    .font(.serif(.headline))
                     .accessibilityIdentifier("weekLabel")
                 if !isThisWeek {
                     Button("This Week") {
@@ -118,8 +125,7 @@ struct PlannerView: View {
             }
             .accessibilityLabel("Next week")
         }
-        .padding(.horizontal)
-        .background(.bar)
+        .padding(.horizontal, 8)
     }
 
     private func row(for task: StudyTask) -> some View {
@@ -129,7 +135,8 @@ struct PlannerView: View {
                 save()
             }) {
                 Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(task.completed ? .green : .gray)
+                    .font(.title3)
+                    .foregroundColor(task.completed ? .accentColor : .secondary)
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
@@ -152,6 +159,10 @@ struct PlannerView: View {
 
             Spacer()
             Text("\(task.duration) min")
+                .font(.serif(.footnote))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color.accentColor.opacity(0.14), in: Capsule())
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundColor(.secondary)

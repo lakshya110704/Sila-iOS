@@ -39,11 +39,16 @@ struct AddTaskView: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Title", text: $title)
-                TextField("Subject", text: $subject)
-                DatePicker("Date", selection: $date)
-                Stepper("\(duration) minutes", value: $duration, in: 5...240, step: 5)
+                Section {
+                    TextField("Title", text: $title)
+                    TextField("Subject", text: $subject)
+                    DatePicker("Date", selection: $date)
+                    Stepper("\(duration) minutes", value: $duration, in: 5...240, step: 5)
+                }
+                .listRowBackground(Color.card)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.paper)
             .navigationTitle(task == nil ? "New Study Task" : "Edit Study Task")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

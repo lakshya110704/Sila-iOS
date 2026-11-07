@@ -37,9 +37,27 @@ Requires Xcode and iOS 18.0 or later.
 
 ## Tests
 
-`SilaTests` covers the timer, the suggestions, the planner week, the summary calculations, add task validation and migrating stores from earlier Core Data model versions. Last run: 71 of 71 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
+`SilaTests` covers the timer, the suggestions, the planner week, the summary calculations, add task validation and migrating stores from earlier Core Data model versions. Last run: 73 of 73 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
 
-`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, editing, completing and deleting a task, moving between weeks, and using a suggestion, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 12 of 12 test methods passed on the same simulator. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
+`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, editing, completing and deleting a task, moving between weeks, and using a suggestion, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 16 of 16 test methods passed on the same simulator, run one at a time. Earlier runs while the Mac was overloaded or sleeping did have failures, mostly timeouts. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
+
+## Not yet tested
+
+Sila has only been run on a simulator. For a physical device it has only been compiled, without code signing. These have not been tested:
+
+- A timer across a real reboot, or a real change of the device time. Unit tests cover both with a fake clock.
+- A finish notification firing on a device.
+- Whether taps are ever ignored on a device.
+- The Your History card making a real suggestion on screen. Unit tests cover the logic, and the UI test only checks that the card appears.
+
+## Known gaps
+
+- The app icon is a generated placeholder.
+- There is no backup or export, so deleting the app deletes your tasks and timer history.
+
+## Privacy
+
+Sila makes no network calls and has no accounts or analytics. Tasks and timer history stay on the device. The only permission it asks for is notifications, the first time you start a timer.
 
 ## Roadmap
 

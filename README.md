@@ -4,15 +4,15 @@ Sila is an iOS study planner with focus timers and a productivity summary. It st
 
 ## Features
 
-- **Planner:** add, edit, complete and delete study tasks (title, subject, date, duration). Tap a task to edit it. Tasks appear by day for one week at a time, with buttons to move between weeks. Save stays disabled until the title is not blank and the duration is above zero.
-- **Focus timer:** three modes, with start, pause and reset. The timer keeps running when you switch tabs. It works out remaining time from the system uptime clock, so time spent in the background still counts and changing the device time doesn't shift it. After a reboot it goes by the device time instead. Its state is saved, so a running or paused timer carries on if iOS terminates the app. It sends a notification when it finishes, if you allow notifications.
+- **Planner:** add, edit, complete and delete study tasks (title, subject, date, duration). Tap a task to edit it, or tap its play button to focus on it. Tasks appear by day for one week at a time, with buttons to move between weeks. Save stays disabled until the title is not blank and the duration is above zero.
+- **Focus timer:** three modes, with start, pause and reset. The timer keeps running when you switch tabs. It works out remaining time from the system uptime clock, so time spent in the background still counts and changing the device time doesn't shift it. After a reboot it goes by the device time instead. Its state is saved, so a running or paused timer carries on if iOS terminates the app. It sends a notification when it finishes, if you allow notifications. Focusing on a task opens the timer with that task attached, and its Pomodoro and Deep Work sessions count toward the task. A session in progress keeps the task it started with.
   - Pomodoro: 25 minutes
   - Deep Work: 90 minutes
   - Break: 5 minutes
 - **Suggestions:** two suggestions sit side by side on the Timer screen, and either can set the timer's mode.
   - General: fixed rules of thumb based on the time of day and whether you just finished a focus session. They are not personalised or based on research.
   - Your History: the focus mode you finish most reliably at this time of day, from the timer sessions saved on your device. It needs 5 focus sessions in a part of the day before it suggests anything.
-- **Productivity summary:** today's total study minutes, a list of completed tasks and a 7-day bar chart. Minutes count on the day a task was completed. Tasks completed before the app stored that date count on their scheduled date.
+- **Productivity summary:** today's focus time, a 7-day bar chart and a list of completed tasks. Minutes come from Pomodoro and Deep Work sessions, with or without a task, and leave out paused time and breaks. A session counts on the day it ended, once you finish or reset it. Reset sessions under a minute aren't saved. Completing a task without using the timer adds no minutes. Sessions saved before this was tracked may include some paused time, capped at the mode's length.
 
 ## Built with
 
@@ -37,9 +37,9 @@ Requires Xcode and iOS 18.0 or later.
 
 ## Tests
 
-`SilaTests` covers the timer, the suggestions, the planner week, the summary calculations, add task validation and migrating stores from earlier Core Data model versions. Last run: 73 of 73 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
+`SilaTests` covers the timer, the suggestions, the planner week, the summary calculations, add task validation and migrating stores from earlier Core Data model versions. Last run: 81 of 81 passed on an iPhone 16 simulator (iOS 18.0, Xcode 27.2).
 
-`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, editing, completing and deleting a task, moving between weeks, and using a suggestion, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 16 of 16 test methods passed on the same simulator, run one at a time. Earlier runs while the Mac was overloaded or sleeping did have failures, mostly timeouts. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
+`SilaUITests` drives the running app through switching tabs, going to the background, being terminated, adding, editing, completing and deleting a task, moving between weeks, using a suggestion, and focusing on a task until its time shows in the planner and Summary, and checks tap target sizes. It also contains the Xcode template launch tests. Last run: 17 of 17 test methods passed on the same simulator, run one at a time. Earlier runs while the Mac was overloaded or sleeping did have failures, mostly timeouts. A UI test retries a tap once if its expected result does not appear, because taps occasionally had no visible effect. In one stress test with the Mac overloaded, 1 of about 79 taps had no effect, and 0 of 90 did without the extra load. The exact cause is unknown.
 
 ## Not yet tested
 

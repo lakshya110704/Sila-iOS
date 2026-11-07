@@ -91,12 +91,13 @@ final class TimerViewModel: ObservableObject {
     }
     @Published private(set) var timeRemaining = TimerMode.pomodoro.seconds
     @Published private(set) var isRunning = false
+    @Published private(set) var focusTaskURL: URL?
+    @Published private var sessionStart: Date?
 
     private let clock: TimerClock
     private let defaults: UserDefaults
     private let notifier: TimerNotifier
-    private let onSessionEnd: (_ mode: TimerMode, _ startedAt: Date, _ endedAt: Date, _ finished: Bool) -> Void
-    private var sessionStart: Date?
+    private let onSessionEnd: (_ mode: TimerMode, _ startedAt: Date, _ endedAt: Date, _ finished: Bool, _ focusedSeconds: Int, _ taskURL: URL?) -> Void
     private var sessionMode: TimerMode?
     private var stopTicks: (() -> Void)?
     private var endDate: Date?
@@ -110,13 +111,14 @@ final class TimerViewModel: ObservableObject {
         static let bootID = "timer.bootID"
         static let sessionStart = "timer.sessionStart"
         static let sessionMode = "timer.sessionMode"
+        static let focusTask = "timer.focusTask"
     }
 
     init(
         clock: TimerClock = .system,
         defaults: UserDefaults = .standard,
         notifier: TimerNotifier = .system,
-        onSessionEnd: @escaping (TimerMode, Date, Date, Bool) -> Void = { _, _, _, _ in }
+        onSessionEnd: @escaping (TimerMode, Date, Date, Bool, Int, URL?) -> Void = { _, _, _, _, _, _ in }
     ) {
         self.clock = clock
         self.defaults = defaults
@@ -127,6 +129,7 @@ final class TimerViewModel: ObservableObject {
         // Set through the wrapper because mode's didSet would reset the saved state.
         _mode = Published(initialValue: saved)
         timeRemaining = defaults.integer(forKey: Key.timeRemaining)
+        focusTaskURL = defaults.url(forKey: Key.focusTask)
         sessionStart = defaults.object(forKey: Key.sessionStart) as? Date
         sessionMode = defaults.string(forKey: Key.sessionMode).flatMap(TimerMode.init(rawValue:))
         if let savedEnd = defaults.object(forKey: Key.endDate) as? Date {
@@ -146,6 +149,18 @@ final class TimerViewModel: ObservableObject {
 
     var timeString: String {
         String(format: "%02d:%02d", timeRemaining / 60, timeRemaining % 60)
+    }
+
+    var hasActiveSession: Bool {
+        sessionStart != nil
+    }
+
+    /// Attaches a task to the next session. A session in progress keeps the task it started with.
+    func focus(on taskURL: URL?) {
+        guard !hasActiveSession else { return }
+        if taskURL != nil && mode == .breakMode { mode = .pomodoro }
+        focusTaskURL = taskURL
+        save()
     }
 
     func start() {
@@ -199,7 +214,8 @@ final class TimerViewModel: ObservableObject {
 
     private func endSession(finished: Bool, endedAt: Date) {
         guard let sessionStart, let sessionMode else { return }
-        onSessionEnd(sessionMode, sessionStart, endedAt, finished)
+        onSessionEnd(sessionMode, sessionStart, endedAt, finished, sessionMode.seconds - timeRemaining,
+                     sessionMode == .breakMode ? nil : focusTaskURL)
     }
 
     private func scheduleTicks() {
@@ -224,5 +240,6 @@ final class TimerViewModel: ObservableObject {
         defaults.set(clock.bootID(), forKey: Key.bootID)
         defaults.set(sessionStart, forKey: Key.sessionStart)
         defaults.set(sessionMode?.rawValue, forKey: Key.sessionMode)
+        defaults.set(focusTaskURL, forKey: Key.focusTask)
     }
 }

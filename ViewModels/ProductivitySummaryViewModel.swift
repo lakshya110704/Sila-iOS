@@ -14,6 +14,7 @@ struct DailyStudyData: Identifiable {
 
 final class ProductivitySummaryViewModel: ObservableObject {
     @Published private(set) var completedTasks: [StudyTask] = []
+    @Published private var sessions: [TimerSession] = []
 
     private let context: NSManagedObjectContext
     private let now: () -> Date
@@ -42,12 +43,12 @@ final class ProductivitySummaryViewModel: ObservableObject {
     }
 
     private func totalMinutes(on day: Date) -> Int {
-        completedTasks
-            .filter { task in
-                guard let date = task.countedDate else { return false }
-                return Calendar.current.isDate(date, inSameDayAs: day)
+        sessions
+            .filter { session in
+                guard session.isFocus, let endedAt = session.endedAt else { return false }
+                return Calendar.current.isDate(endedAt, inSameDayAs: day)
             }
-            .reduce(0) { $0 + Int($1.duration) }
+            .reduce(0) { $0 + $1.countedSeconds } / 60
     }
 
     private func reload() {
@@ -55,5 +56,6 @@ final class ProductivitySummaryViewModel: ObservableObject {
         request.predicate = NSPredicate(format: "completed == true")
         request.sortDescriptors = [NSSortDescriptor(keyPath: \StudyTask.date, ascending: false)]
         completedTasks = (try? context.fetch(request)) ?? []
+        sessions = (try? context.fetch(NSFetchRequest<TimerSession>(entityName: "TimerSession"))) ?? []
     }
 }

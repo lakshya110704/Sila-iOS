@@ -10,14 +10,18 @@ import SwiftUI
 import CoreData
 
 struct TimerDashboardView: View {
-    @StateObject private var viewModel: TimerViewModel
+    @ObservedObject var viewModel: TimerViewModel
     @StateObject private var suggestions: SuggestionsViewModel
     @Environment(\.scenePhase) private var scenePhase
+    @FetchRequest(sortDescriptors: []) private var tasks: FetchedResults<StudyTask>
 
-    init(context: NSManagedObjectContext) {
-        _viewModel = StateObject(wrappedValue: TimerViewModel(onSessionEnd: { mode, startedAt, endedAt, finished in
-            TimerSession.record(mode: mode, startedAt: startedAt, endedAt: endedAt, finished: finished, in: context)
-        }))
+    private var focusTask: StudyTask? {
+        guard viewModel.mode != .breakMode else { return nil }
+        return tasks.first { $0.objectID.uriRepresentation() == viewModel.focusTaskURL }
+    }
+
+    init(context: NSManagedObjectContext, viewModel: TimerViewModel) {
+        self.viewModel = viewModel
         _suggestions = StateObject(wrappedValue: SuggestionsViewModel(context: context))
     }
 
@@ -33,6 +37,31 @@ struct TimerDashboardView: View {
                     }
                     .pickerStyle(.segmented)
                     .padding([.horizontal, .top])
+
+                    if let focusTask {
+                        HStack {
+                            Image(systemName: "scope")
+                                .foregroundStyle(Color.accentColor)
+                                .accessibilityHidden(true)
+                            Text(focusTask.title ?? "Untitled")
+                                .font(.serif(.headline))
+                                .lineLimit(1)
+                                .accessibilityIdentifier("focusTaskTitle")
+                            if !viewModel.hasActiveSession {
+                                Button {
+                                    viewModel.focus(on: nil)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                        .frame(minWidth: 44, minHeight: 44)
+                                        .contentShape(Rectangle())
+                                }
+                                .accessibilityLabel("Stop focusing on this task")
+                            }
+                        }
+                        .frame(minHeight: 44)
+                        .padding(.horizontal)
+                    }
 
                     ZStack {
                         Circle()

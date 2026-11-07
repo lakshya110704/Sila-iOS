@@ -21,25 +21,49 @@ extension StudyTask {
         completedAt = completed ? now : nil
     }
 
-    /// The day this task's minutes count on. Tasks completed before completedAt existed have none, so use their scheduled date.
-    var countedDate: Date? {
-        completedAt ?? date
+    var focusedMinutes: Int {
+        ((sessions as? Set<TimerSession>) ?? []).reduce(0) { $0 + $1.countedSeconds } / 60
+    }
+
+    var durationLabel: String {
+        focusedMinutes > 0 ? "\(focusedMinutes) of \(duration) min" : "\(duration) min"
+    }
+
+    static func find(_ url: URL?, in context: NSManagedObjectContext) -> StudyTask? {
+        guard let url, let id = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url) else { return nil }
+        return (try? context.existingObject(with: id)) as? StudyTask
     }
 }
 
 extension TimerSession {
-    static func record(mode: TimerMode, startedAt: Date, endedAt: Date, finished: Bool, in context: NSManagedObjectContext) {
+    static func record(mode: TimerMode, startedAt: Date, endedAt: Date, finished: Bool, focusedSeconds: Int? = nil,
+                       task: StudyTask? = nil, in context: NSManagedObjectContext) {
         // By name because +[TimerSession entity] is ambiguous when several containers have loaded the model.
         let session = NSEntityDescription.insertNewObject(forEntityName: "TimerSession", into: context) as! TimerSession
         session.mode = mode.rawValue
         session.startedAt = startedAt
         session.endedAt = endedAt
         session.finished = finished
+        session.focusedSeconds = focusedSeconds.map { NSNumber(value: $0) }
+        session.task = task
         do {
             try context.save()
         } catch {
             context.rollback()
         }
+    }
+}
+
+extension TimerSession {
+    var isFocus: Bool {
+        mode != TimerMode.breakMode.rawValue
+    }
+
+    /// Sessions saved before focusedSeconds existed have none. Their start and end can include paused time, so cap them at the mode's length.
+    var countedSeconds: Int {
+        if let focusedSeconds { return focusedSeconds.intValue }
+        guard let length = mode.flatMap(TimerMode.init(rawValue:))?.seconds, let startedAt, let endedAt else { return 0 }
+        return finished ? length : min(length, Int(endedAt.timeIntervalSince(startedAt)))
     }
 }
 

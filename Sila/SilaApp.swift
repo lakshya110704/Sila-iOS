@@ -19,8 +19,11 @@ struct SilaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            // Unit tests run inside this app and load several containers, which live views' fetch requests can't handle.
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+                ContentView(context: persistenceController.container.viewContext)
+                    .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            }
         }
     }
 }

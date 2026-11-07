@@ -11,6 +11,7 @@ import CoreData
 
 struct PlannerView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    let onFocus: (StudyTask) -> Void
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \StudyTask.date, ascending: true)],
@@ -158,15 +159,23 @@ struct PlannerView: View {
             }
 
             Spacer()
-            Text("\(task.duration) min")
+            Text(task.durationLabel)
                 .font(.serif(.footnote))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(Color.accentColor.opacity(0.14), in: Capsule())
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .accessibilityHidden(true)
+            if !task.completed {
+                Button {
+                    onFocus(task)
+                } label: {
+                    Image(systemName: "play.circle.fill")
+                        .font(.title2)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Focus")
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture {

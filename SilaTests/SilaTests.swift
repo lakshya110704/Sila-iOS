@@ -70,7 +70,7 @@ final class NotificationLog {
 
 /// Records the sessions the timer reports as ended.
 final class EndedSessions {
-    var items: [(mode: TimerMode, length: TimeInterval, finished: Bool)] = []
+    var items: [(mode: TimerMode, length: TimeInterval, finished: Bool, focusedSeconds: Int, taskURL: URL?)] = []
 }
 
 struct TimerViewModelTests {
@@ -82,9 +82,75 @@ struct TimerViewModelTests {
 
     /// Calling this again acts like the app launching after being terminated.
     private func makeTimer() -> TimerViewModel {
-        TimerViewModel(clock: fake.timerClock, defaults: defaults, notifier: notifications.notifier) { mode, start, end, finished in
-            self.ended.items.append((mode, end.timeIntervalSince(start), finished))
+        TimerViewModel(clock: fake.timerClock, defaults: defaults, notifier: notifications.notifier) { mode, start, end, finished, focusedSeconds, taskURL in
+            self.ended.items.append((mode, end.timeIntervalSince(start), finished, focusedSeconds, taskURL))
         }
+    }
+
+    @Test func focusedSecondsLeaveOutPausedTime() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 600)
+        timer.pause()
+        fake.advance(seconds: 3600)
+        timer.start()
+        fake.advance(seconds: 60)
+        timer.reset()
+
+        #expect(ended.items.count == 1)
+        #expect(ended.items[0].focusedSeconds == 660)
+        #expect(ended.items[0].length == 4260)
+    }
+
+    @Test func aFinishedSessionCountsTheWholeMode() {
+        let timer = makeTimer()
+        timer.start()
+        fake.advance(seconds: 25 * 60)
+        #expect(ended.items[0].focusedSeconds == 25 * 60)
+    }
+
+    @Test func focusTaskIsRecordedAndSurvivesRelaunch() {
+        let url = URL(string: "x-coredata://store/StudyTask/p1")!
+        makeTimer().focus(on: url)
+        let timer = makeTimer()
+        #expect(timer.focusTaskURL == url)
+
+        timer.start()
+        fake.advance(seconds: 25 * 60)
+        #expect(ended.items[0].taskURL == url)
+        #expect(timer.focusTaskURL == url)
+    }
+
+    @Test func aSessionInProgressKeepsItsTask() {
+        let first = URL(string: "x-coredata://store/StudyTask/p1")!
+        let timer = makeTimer()
+        timer.focus(on: first)
+        timer.start()
+        timer.focus(on: URL(string: "x-coredata://store/StudyTask/p2")!)
+        #expect(timer.focusTaskURL == first)
+        timer.pause()
+        timer.focus(on: nil)
+        #expect(timer.focusTaskURL == first)
+
+        timer.reset()
+        timer.focus(on: nil)
+        #expect(timer.focusTaskURL == nil)
+    }
+
+    @Test func focusingOnATaskLeavesBreakMode() {
+        let timer = makeTimer()
+        timer.mode = .breakMode
+        timer.focus(on: URL(string: "x-coredata://store/StudyTask/p1")!)
+        #expect(timer.mode == .pomodoro)
+    }
+
+    @Test func breakSessionsAreNotAttributedToATask() {
+        let timer = makeTimer()
+        timer.focus(on: URL(string: "x-coredata://store/StudyTask/p1")!)
+        timer.mode = .breakMode
+        timer.start()
+        fake.advance(seconds: 5 * 60)
+        #expect(ended.items[0].taskURL == nil)
     }
 
     @Test func finishingRecordsAFinishedSession() {
@@ -549,32 +615,84 @@ struct ProductivitySummaryViewModelTests {
         #expect(task.duration == 45)
     }
 
-    @Test func editingACompletedTaskKeepsItsCompletionAndCountedDay() throws {
+    @Test func editingACompletedTaskKeepsItsCompletion() throws {
         let completedAt = date(daysAgo: 0)
         let task = try addTask(on: date(daysAgo: 1), minutes: 30, completedAt: completedAt)
-        let summary = makeSummary()
-        #expect(summary.todayTotalMinutes == 30)
 
         task.update(title: "Renamed", subject: "", date: date(daysAgo: 4), duration: 45)
         try context.save()
 
         #expect(task.completed)
         #expect(task.completedAt == completedAt)
-        #expect(summary.todayTotalMinutes == 45)
     }
 
-    @Test func minutesCountOnTheDayCompletedNotTheDayScheduled() throws {
-        try addTask(on: date(daysAgo: 5), minutes: 30, completedAt: date(daysAgo: 0))
-        try addTask(on: date(daysAgo: 0), minutes: 60, completedAt: date(daysAgo: 1))
+    private func addSession(endedOn endedAt: Date, seconds: Int?, mode: TimerMode = .pomodoro, finished: Bool = false,
+                            startedAt: Date? = nil, task: StudyTask? = nil) {
+        TimerSession.record(mode: mode, startedAt: startedAt ?? endedAt, endedAt: endedAt, finished: finished,
+                            focusedSeconds: seconds, task: task, in: context)
+    }
+
+    @Test func minutesComeFromFocusNotCompletedTasks() throws {
+        try addTask(on: date(daysAgo: 0), minutes: 60, completedAt: date(daysAgo: 0))
+        addSession(endedOn: date(daysAgo: 0), seconds: 25 * 60)
 
         let summary = makeSummary()
-        #expect(summary.todayTotalMinutes == 30)
-        #expect(summary.past7DaysData.map(\.totalMinutes) == [0, 0, 0, 0, 0, 60, 30])
+        #expect(summary.todayTotalMinutes == 25)
+        #expect(summary.completedTasks.count == 1)
     }
 
-    @Test func taskWithoutACompletionDateCountsOnItsScheduledDate() throws {
-        try addTask(on: date(daysAgo: 2), minutes: 30, completedAt: nil)
-        #expect(makeSummary().past7DaysData.map(\.totalMinutes) == [0, 0, 0, 0, 30, 0, 0])
+    @Test func breaksDoNotCount() {
+        addSession(endedOn: date(daysAgo: 0), seconds: 5 * 60, mode: .breakMode)
+        #expect(makeSummary().todayTotalMinutes == 0)
+    }
+
+    @Test func sessionsCountOnTheDayTheyEnded() {
+        addSession(endedOn: date(daysAgo: 0), seconds: 20 * 60, startedAt: date(daysAgo: 1, hour: 23))
+        addSession(endedOn: date(daysAgo: 2), seconds: 10 * 60)
+        addSession(endedOn: date(daysAgo: 7), seconds: 99 * 60)
+        #expect(makeSummary().past7DaysData.map(\.totalMinutes) == [0, 0, 0, 0, 10, 0, 20])
+    }
+
+    @Test func secondsAddUpBeforeRoundingDown() {
+        addSession(endedOn: date(daysAgo: 0), seconds: 90)
+        addSession(endedOn: date(daysAgo: 0), seconds: 90)
+        #expect(makeSummary().todayTotalMinutes == 3)
+    }
+
+    @Test func oldSessionsWithoutFocusedSecondsAreCappedAtTheirMode() {
+        addSession(endedOn: date(daysAgo: 0), seconds: nil, finished: true, startedAt: date(daysAgo: 0, hour: 1))
+        addSession(endedOn: date(daysAgo: 1), seconds: nil, startedAt: date(daysAgo: 1, hour: 1))
+        addSession(endedOn: date(daysAgo: 2), seconds: nil, startedAt: date(daysAgo: 2).addingTimeInterval(-120))
+        #expect(makeSummary().past7DaysData.map(\.totalMinutes) == [0, 0, 0, 0, 2, 25, 25])
+    }
+
+    @Test func aTaskShowsItsFocusedTime() throws {
+        let task = try addTask(on: date(daysAgo: 0), minutes: 30, completed: false)
+        #expect(task.durationLabel == "30 min")
+
+        addSession(endedOn: date(daysAgo: 0), seconds: 12 * 60, task: task)
+        #expect(task.focusedMinutes == 12)
+        #expect(task.durationLabel == "12 of 30 min")
+    }
+
+    @Test func deletingATaskKeepsItsFocusTime() throws {
+        let task = try addTask(on: date(daysAgo: 0), minutes: 30, completed: false)
+        addSession(endedOn: date(daysAgo: 0), seconds: 12 * 60, task: task)
+        let summary = makeSummary()
+
+        context.delete(task)
+        try context.save()
+        #expect(summary.todayTotalMinutes == 12)
+    }
+
+    @Test func findingATaskByURLAfterItIsDeletedGivesNil() throws {
+        let task = try addTask(on: date(daysAgo: 0), minutes: 30, completed: false)
+        let url = task.objectID.uriRepresentation()
+        #expect(StudyTask.find(url, in: context) == task)
+
+        context.delete(task)
+        try context.save()
+        #expect(StudyTask.find(url, in: context) == nil)
     }
 
     @Test func togglingSetsAndClearsTheCompletionDate() throws {
@@ -599,30 +717,6 @@ struct ProductivitySummaryViewModelTests {
         #expect(fetched.first?.completed == false)
     }
 
-    @Test func todayTotalAddsCompletedTasksFromToday() throws {
-        try addTask(on: date(daysAgo: 0, hour: 0), minutes: 30)
-        try addTask(on: date(daysAgo: 0, hour: 23), minutes: 45)
-        #expect(makeSummary().todayTotalMinutes == 75)
-    }
-
-    @Test func todayTotalIgnoresOtherDays() throws {
-        try addTask(on: date(daysAgo: 0), minutes: 30)
-        try addTask(on: date(daysAgo: 1, hour: 23), minutes: 60)
-        try addTask(on: date(daysAgo: -1, hour: 0), minutes: 90)
-        #expect(makeSummary().todayTotalMinutes == 30)
-    }
-
-    @Test func todayTotalIgnoresIncompleteTasks() throws {
-        try addTask(on: date(daysAgo: 0), minutes: 30)
-        try addTask(on: date(daysAgo: 0), minutes: 60, completed: false)
-        #expect(makeSummary().todayTotalMinutes == 30)
-    }
-
-    @Test func todayTotalIgnoresTasksWithoutADate() throws {
-        try addTask(on: nil, minutes: 60)
-        #expect(makeSummary().todayTotalMinutes == 0)
-    }
-
     @Test func weekHasSevenDaysOldestFirstEndingToday() {
         let days = makeSummary().past7DaysData.map(\.date)
         let expected = (0..<7).reversed().map { Calendar.current.startOfDay(for: date(daysAgo: $0)) }
@@ -633,23 +727,13 @@ struct ProductivitySummaryViewModelTests {
         #expect(makeSummary().past7DaysData.map(\.totalMinutes) == [0, 0, 0, 0, 0, 0, 0])
     }
 
-    @Test func weekPutsMinutesOnTheirDaysAndZerosOnEmptyDays() throws {
-        try addTask(on: date(daysAgo: 6), minutes: 10)
-        try addTask(on: date(daysAgo: 2), minutes: 20)
-        try addTask(on: date(daysAgo: 2), minutes: 5)
-        try addTask(on: date(daysAgo: 0), minutes: 30)
-        try addTask(on: date(daysAgo: 1), minutes: 99, completed: false)
-        try addTask(on: date(daysAgo: 7), minutes: 99)
-        #expect(makeSummary().past7DaysData.map(\.totalMinutes) == [10, 0, 0, 0, 25, 0, 30])
-    }
-
     @Test func updatesWhenTheContextSaves() throws {
         let summary = makeSummary()
         let task = try addTask(on: date(daysAgo: 0), minutes: 30, completed: false)
-        #expect(summary.todayTotalMinutes == 0)
+        #expect(summary.completedTasks.isEmpty)
 
         task.completed = true
-        try context.save()
+        addSession(endedOn: date(daysAgo: 0), seconds: 30 * 60)
         #expect(summary.todayTotalMinutes == 30)
         #expect(summary.completedTasks.count == 1)
     }
@@ -686,6 +770,45 @@ struct StoreMigrationTests {
         TimerSession.record(mode: .pomodoro, startedAt: completedAt, endedAt: completedAt, finished: true, in: context)
         let sessions = try context.fetch(NSFetchRequest<TimerSession>(entityName: "TimerSession"))
         #expect(sessions.count == 1)
+    }
+
+    @Test func storeFromTheThirdModelKeepsSessionsAndCanLinkThem() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).sqlite")
+        let endedAt = Date(timeIntervalSinceReferenceDate: 800_000_000)
+
+        let momd = try #require(Bundle.main.url(forResource: "Sila", withExtension: "momd"))
+        let oldModel = try #require(NSManagedObjectModel(contentsOf: momd.appendingPathComponent("Sila 3.mom")))
+        let sessionEntity = try #require(oldModel.entitiesByName["TimerSession"])
+        let taskEntity = try #require(oldModel.entitiesByName["StudyTask"])
+        #expect(sessionEntity.attributesByName["focusedSeconds"] == nil)
+
+        let oldContainer = NSPersistentContainer(name: "Sila", managedObjectModel: oldModel)
+        oldContainer.persistentStoreDescriptions = [NSPersistentStoreDescription(url: url)]
+        oldContainer.loadPersistentStores { _, error in #expect(error == nil) }
+        let oldTask = NSManagedObject(entity: taskEntity, insertInto: oldContainer.viewContext)
+        oldTask.setValue("Third model task", forKey: "title")
+        oldTask.setValue(Int64(30), forKey: "duration")
+        let oldSession = NSManagedObject(entity: sessionEntity, insertInto: oldContainer.viewContext)
+        oldSession.setValue(TimerMode.pomodoro.rawValue, forKey: "mode")
+        oldSession.setValue(endedAt.addingTimeInterval(-1500), forKey: "startedAt")
+        oldSession.setValue(endedAt, forKey: "endedAt")
+        oldSession.setValue(true, forKey: "finished")
+        try oldContainer.viewContext.save()
+        for store in oldContainer.persistentStoreCoordinator.persistentStores {
+            try oldContainer.persistentStoreCoordinator.remove(store)
+        }
+
+        let context = PersistenceController(storeURL: url).container.viewContext
+        let task = try #require(try context.fetch(StudyTask.fetchRequest()).first)
+        let session = try #require(try context.fetch(NSFetchRequest<TimerSession>(entityName: "TimerSession")).first)
+        #expect(task.title == "Third model task")
+        #expect(session.focusedSeconds == nil)
+        #expect(session.task == nil)
+        #expect(session.countedSeconds == 1500)
+        #expect(ProductivitySummaryViewModel(context: context, now: { endedAt }).todayTotalMinutes == 25)
+
+        TimerSession.record(mode: .pomodoro, startedAt: endedAt, endedAt: endedAt, finished: true, focusedSeconds: 600, task: task, in: context)
+        #expect(task.focusedMinutes == 10)
     }
 
     @Test func storeFromTheOldModelMigratesAndKeepsItsTasks() throws {
@@ -725,8 +848,7 @@ struct StoreMigrationTests {
         #expect(task.completed)
         #expect(task.completedAt == nil)
 
-        let summary = ProductivitySummaryViewModel(context: context, now: { scheduled })
-        #expect(summary.todayTotalMinutes == 45)
+        #expect(ProductivitySummaryViewModel(context: context, now: { scheduled }).completedTasks.count == 1)
 
         // A migrated task can store a completion date like any other.
         task.toggleCompleted(now: scheduled)

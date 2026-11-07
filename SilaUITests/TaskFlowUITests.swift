@@ -134,6 +134,42 @@ final class TaskFlowUITests: XCTestCase {
         XCTAssertTrue(row.buttons["Mark incomplete"].waitForExistence(timeout: 10))
     }
 
+    func testFocusingOnATaskCountsItsTime() {
+        // Timer state lives outside the in-memory store, so clear anything an earlier test left running.
+        let timerTab = app.tabBars.buttons["Timer"]
+        XCTAssertTrue(timerTab.waitForExistence(timeout: 30))
+        timerTab.tap(until: app.buttons["Reset"])
+        app.buttons["Reset"].tap(until: app.buttons["Start"])
+        // That reset can record a session of its own, so compare the total rather than expect an exact one.
+        let total = app.staticTexts["todayFocusTime"]
+        app.tabBars.buttons["Summary"].tap(until: total)
+        let minutesBefore = Int(total.label.prefix { $0.isNumber })
+        app.tabBars.buttons["Planner"].tap(until: app.buttons["Add Task"])
+
+        let title = addTask()
+        XCTAssertTrue(waitUntilGone(app.buttons["Save"]))
+        XCTAssertTrue(row(title).waitForExistence(timeout: 10))
+        row(title).buttons["Focus"].tap(until: app.staticTexts["focusTaskTitle"])
+        XCTAssertEqual(app.staticTexts["focusTaskTitle"].label, title)
+
+        app.buttons["Start"].tap(until: app.buttons["Pause"])
+        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.buttons["Allow"]
+        if allow.waitForExistence(timeout: 2) {
+            allow.tap()
+        }
+        sleep(62)
+        app.buttons["Reset"].tap(until: app.buttons["Start"])
+
+        app.tabBars.buttons["Planner"].tap(until: row(title))
+        XCTAssertTrue(row(title).staticTexts["1 of 30 min"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Summary"].tap(until: total)
+        XCTAssertEqual(Int(total.label.prefix { $0.isNumber }), minutesBefore.map { $0 + 1 })
+
+        app.tabBars.buttons["Timer"].tap(until: app.staticTexts["focusTaskTitle"])
+        app.buttons["Stop focusing on this task"].tap()
+        XCTAssertTrue(waitUntilGone(app.staticTexts["focusTaskTitle"]))
+    }
+
     func testDeletingATaskRemovesIt() {
         let keep = addTask()
         XCTAssertTrue(row(keep).waitForExistence(timeout: 10))

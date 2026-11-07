@@ -22,12 +22,13 @@ struct ProductivitySummaryView: View {
             ScreenTitle(text: "Summary")
             List {
                 Section {
-                    Text("\(viewModel.todayTotalMinutes) minutes")
+                    Text("^[\(viewModel.todayTotalMinutes) minute](inflect: true)")
                         .font(.serif(.largeTitle, weight: .bold))
                         .foregroundStyle(Color.accentColor)
+                        .accessibilityIdentifier("todayFocusTime")
                         .listRowBackground(Color.card)
                 } header: {
-                    SectionTitle(text: "Today’s Total Study Time")
+                    SectionTitle(text: "Today’s Focus Time")
                 }
 
                 Section {
@@ -50,7 +51,7 @@ struct ProductivitySummaryView: View {
                     .frame(height: 200)
                     .listRowBackground(Color.card)
                 } header: {
-                    SectionTitle(text: "Weekly Study Chart")
+                    SectionTitle(text: "Weekly Focus Time")
                 }
 
                 Section {
@@ -69,7 +70,7 @@ struct ProductivitySummaryView: View {
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
-                            Text("\(task.duration) min")
+                            Text(task.durationLabel)
                                 .foregroundColor(.secondary)
                         }
                         .listRowBackground(Color.card)

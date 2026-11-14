@@ -14,13 +14,11 @@ final class FakeClock {
     private var handler: (() -> Void)?
     private var now = Date(timeIntervalSinceReferenceDate: 0)
     private var uptime: TimeInterval = 1000
-    private var bootID = "first boot"
 
     var timerClock: TimerClock {
         TimerClock(
             now: { self.now },
             uptime: { self.uptime },
-            bootID: { self.bootID },
             scheduleTicks: { handler in
                 self.handler = handler
                 return { self.handler = nil }
@@ -52,7 +50,6 @@ final class FakeClock {
     func reboot(after seconds: TimeInterval) {
         now += seconds
         uptime = 5
-        bootID = "second boot"
     }
 }
 
@@ -491,7 +488,7 @@ struct TimerViewModelTests {
         timer.start()
         fake.advance(seconds: 10)
         defaults.removeObject(forKey: "timer.endUptime")
-        defaults.removeObject(forKey: "timer.bootID")
+        defaults.removeObject(forKey: "timer.savedUptime")
 
         let restored = makeTimer()
         #expect(restored.isRunning)

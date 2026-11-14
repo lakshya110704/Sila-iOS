@@ -183,6 +183,9 @@ final class TaskFlowUITests: XCTestCase {
             case .textClipped:
                 // The one-line task title field, and findings with no element to point to.
                 return issue.element == nil || issue.element?.elementType == .textField
+            case .contrast:
+                // Disabled controls, such as a suggestion's button while a timer runs, are exempt in WCAG.
+                return issue.element?.isEnabled == false
             default:
                 return false
             }

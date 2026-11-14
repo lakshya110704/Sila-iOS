@@ -25,21 +25,12 @@ struct TimerClock {
     var now: () -> Date
     /// Seconds since boot. Keeps counting while the device sleeps, and changing the device clock doesn't move it.
     var uptime: () -> TimeInterval
-    /// Different after every reboot, which is when uptime starts again from zero.
-    var bootID: () -> String
     /// Calls the handler once a second and returns a closure that stops it.
     var scheduleTicks: (@escaping () -> Void) -> () -> Void
 
     static let system = TimerClock(
         now: Date.init,
         uptime: { TimeInterval(clock_gettime_nsec_np(CLOCK_MONOTONIC)) / 1_000_000_000 },
-        bootID: {
-            var size = 0
-            sysctlbyname("kern.bootsessionuuid", nil, &size, nil, 0)
-            var buffer = [CChar](repeating: 0, count: size)
-            sysctlbyname("kern.bootsessionuuid", &buffer, &size, nil, 0)
-            return String(cString: buffer)
-        },
         scheduleTicks: { handler in
             let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in handler() }
             return { timer.invalidate() }
@@ -108,7 +99,7 @@ final class TimerViewModel: ObservableObject {
         static let timeRemaining = "timer.timeRemaining"
         static let endDate = "timer.endDate"
         static let endUptime = "timer.endUptime"
-        static let bootID = "timer.bootID"
+        static let savedUptime = "timer.savedUptime"
         static let sessionStart = "timer.sessionStart"
         static let sessionMode = "timer.sessionMode"
         static let focusTask = "timer.focusTask"
@@ -134,8 +125,10 @@ final class TimerViewModel: ObservableObject {
         sessionMode = defaults.string(forKey: Key.sessionMode).flatMap(TimerMode.init(rawValue:))
         if let savedEnd = defaults.object(forKey: Key.endDate) as? Date {
             endDate = savedEnd
+            // Uptime starts again from zero at a reboot, so lower uptime than at the last save means one happened.
             // Uptime only means something within one boot, so after a reboot go by the device clock.
-            if defaults.string(forKey: Key.bootID) == clock.bootID(),
+            // shortcut: a reboot is missed if the app reopens after longer than the device had been on before it, use a boot ID if iOS ever allows one.
+            if let savedUptime = defaults.object(forKey: Key.savedUptime) as? TimeInterval, clock.uptime() >= savedUptime,
                let savedEndUptime = defaults.object(forKey: Key.endUptime) as? TimeInterval {
                 endUptime = savedEndUptime
             } else {
@@ -237,7 +230,7 @@ final class TimerViewModel: ObservableObject {
         defaults.set(timeRemaining, forKey: Key.timeRemaining)
         defaults.set(endDate, forKey: Key.endDate)
         defaults.set(endUptime, forKey: Key.endUptime)
-        defaults.set(clock.bootID(), forKey: Key.bootID)
+        defaults.set(clock.uptime(), forKey: Key.savedUptime)
         defaults.set(sessionStart, forKey: Key.sessionStart)
         defaults.set(sessionMode?.rawValue, forKey: Key.sessionMode)
         defaults.set(focusTaskURL, forKey: Key.focusTask)
